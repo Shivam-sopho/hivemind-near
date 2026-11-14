@@ -22,12 +22,12 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .keys/llm-usage.json
-          key: llm-usage-v2-${{ github.run_id }}
-          restore-keys: llm-usage-v2-
+          key: llm-usage-v3-${{ github.run_id }}
+          restore-keys: llm-usage-v3-
       - name: Seed spend meter on first run (counts AI spend made before cloud hosting)
         run: |
           mkdir -p .keys
-          [ -f .keys/llm-usage.json ] || echo "{\"day\":\"$(date -u +%F)\",\"spentDay\":1,\"spentTotal\":1,\"calls\":0,\"note\":\"seed: spend before cloud hosting, rounded up\"}" > .keys/llm-usage.json
+          [ -f .keys/llm-usage.json ] || echo "{\"day\":\"$(date -u +%F)\",\"spentDay\":0.5,\"spentTotal\":1,\"calls\":0,\"note\":\"seed: spend before cloud hosting, rounded up\"}" > .keys/llm-usage.json
           cat .keys/llm-usage.json
       - name: Run swarm ticks
         env:

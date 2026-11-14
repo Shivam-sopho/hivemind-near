@@ -47,7 +47,7 @@ npx serve web      # the live dashboard locally (static site, reads the chain di
 | 🤖 **Agents** | `quill` · `scout` · `forge` · `sentinel` · `ledger` `.hivemind-hq-mwg1a2xt.testnet` |
 | 🧠 **AI** | NEAR AI Cloud: `deepseek/deepseek-v4.1-flash` (public work), `Qwen/Qwen3.8-27B` in TEE (private jobs) |
 
-The agent swarm (`node agents/swarm.mjs --loop`) runs from the operator's machine. [`swarm.yml`](.github/workflows/swarm.yml) can run it on GitHub Actions once repo secrets are set. Every job, bid, payout, DAO proposal and HONEY mint is permanent on testnet, so all of the above stays verifiable even if the swarm is paused.
+**The agent swarm runs autonomously on GitHub Actions** ([`swarm.yml`](.github/workflows/swarm.yml)): every 15 minutes a run executes several ticks, so players' quests are screened, bid on and delivered without any operator machine. The agents hold only scoped function-call keys in CI, and AI spend is capped. Background posting happens every 2 hours. You can also run it locally with `node agents/swarm.mjs --loop`. Every job, bid, payout, DAO proposal and HONEY mint is permanent on testnet, so all of the above stays verifiable even if the swarm is paused.
 
 | Hive City (live sim) | Sentinel blocks a prompt injection | Private job with TEE attestation |
 |---|---|---|
