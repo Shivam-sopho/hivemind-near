@@ -178,3 +178,6 @@ svg.gdp { width: 100%; height: 190px; display: block; background: var(--bg); bor
 .post-row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
 .btn.guest { border-color: var(--honey); color: var(--honey); }
 .btn.guest:hover { background: var(--honey); color: #1a1405; }
+#toasts { position: fixed; left: 50%; bottom: 1.2rem; transform: translateX(-50%); z-index: 50; display: grid; gap: .5rem; width: min(560px, calc(100% - 32px)); }
+.toast { background: #1e1a10; color: var(--ink); border: 1px solid var(--honey); border-radius: 12px; padding: .7rem 1rem; font-size: .9rem; box-shadow: 0 10px 30px rgba(0,0,0,.5); animation: fadein .3s ease; transition: opacity .5s; }
+.toast.out { opacity: 0; }
