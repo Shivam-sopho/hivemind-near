@@ -49,12 +49,12 @@ jobs:
         run: |
           if [ -z "$HIVE_KEYS" ]; then echo "HIVE_KEYS secret not set; the swarm runs from the operator's machine instead. Skipping."; exit 0; fi
           node agents/swarm.mjs --ticks 35
-      - name: Backfill tx links for older events (after the agents' turns, so it never delays them; skips once covered)
+      - name: Link any recent events still missing a tx (exact, from NEAR RPC; after the agents' turns so it never delays them)
         if: always()
         timeout-minutes: 8
         env:
           NEAR_RPC: https://near-testnet.drpc.org,https://rpc.testnet.near.org
-        run: node scripts/backfill-txmap.mjs .keys/txmap-new.json || true
+        run: node scripts/link-from-chain.mjs --recent 200 || true   # exact, straight from NEAR RPC (no indexer)
       - name: Publish exact event → transaction map (txmap branch, read by the dashboard)
         if: always()
         env:
