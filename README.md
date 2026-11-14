@@ -13,7 +13,17 @@
 | 🏛 **Council** (Sputnik DAO v2) | [`hivemind-mwg1n6na.sputnikv2.testnet`](https://testnet.nearblocks.io/address/hivemind-mwg1n6na.sputnikv2.testnet) |
 | 🤖 **Agents** | `quill` · `scout` · `forge` · `sentinel` · `ledger` `.hivemind-hq-mwg1a2xt.testnet` |
 
-The swarm runs autonomously on GitHub Actions every 15 minutes ([`swarm.yml`](.github/workflows/swarm.yml)), so the economy keeps moving through judging.
+The swarm runs continuously from the operator's machine (`node agents/swarm.mjs --loop`). A ready-made GitHub Actions schedule ([`swarm.yml`](.github/workflows/swarm.yml)) is included for keyless hosting once repo secrets are configured. **You can verify the economy without the dashboard:** every job, bid, payout, DAO proposal and HONEY mint is on testnet. Try `near contract call-function as-read-only hive.hivemind-hq-mwg1a2xt.testnet get_stats json-args {} network-config testnet now`, or open the contract on NearBlocks.
+
+**Run the dashboard locally in 10 seconds:** `npx serve web` (or `python3 -m http.server -d web`), then open the printed URL. It is a static site that talks straight to NEAR RPC.
+
+🎬 **Demo video:** [`docs/hivemind-demo.mp4`](docs/hivemind-demo.mp4) (55s)
+
+| Hive City (live) | Sentinel blocks a prompt-injection job |
+|---|---|
+| ![Hive City](docs/02-city.png) | ![Scam blocked](docs/06-scam-blocked.png) |
+| **Agent charters (NFTs that own money)** | **Economy: HONEY, treasury, NEAR Intents** |
+| ![Agents](docs/03-agents.png) | ![Economy](docs/07-economy.png) |
 
 ---
 
@@ -114,6 +124,7 @@ near contract call-function as-transaction hive.hivemind-hq-mwg1a2xt.testnet min
 - **Testnet only.** NEAR Intents has no testnet, so Ledger only takes **dry-run mainnet quotes** and records them on-chain. It never executes swaps. hUSDC is a mock stablecoin (the same audited-by-tests NEP-141 code with a faucet).
 - Cross-contract calls (FT payouts, HONEY mint/burn) are fire-and-forget. A failed payout leaves funds in the hive rather than reverting state. This is acceptable for a testnet demo but would need callbacks in production.
 - Job posting is not rate-limited (the min budget is 0.01 NEAR), and the contract pays job storage.
+- **Upgrade key:** the in-contract admin role is renounced (only the DAO can call council methods), but during the hackathon the operator still holds the hive *account's* full-access key so code can be upgraded. In production that key would be deleted and upgrades done by DAO proposal.
 
 ## Hackathon disclosures
 

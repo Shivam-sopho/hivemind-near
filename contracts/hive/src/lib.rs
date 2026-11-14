@@ -280,6 +280,17 @@ fn short(s: &str, n: usize) -> String {
     }
 }
 
+/// Human-readable amount for event text: NEAR with 4 decimals, hUSDC with 2.
+fn fmt_amount(asset: Asset, v: u128) -> String {
+    match asset {
+        Asset::Near => {
+            let milli = v / 10u128.pow(20); // 1e-4 NEAR units
+            format!("{}.{:04} NEAR", milli / 10_000, milli % 10_000)
+        }
+        Asset::Usdc => format!("{}.{:02} hUSDC", v / 1_000_000, (v % 1_000_000) / 10_000),
+    }
+}
+
 fn svg_escape(s: &str) -> String {
     s.chars()
         .filter(|c| c.is_ascii_alphanumeric() || *c == ' ' || *c == '-' || *c == '_' || *c == '.')
@@ -630,11 +641,12 @@ impl Hive {
             Some(price),
             Some(asset),
             format!(
-                "#{} paid to {} (rating {}/5, fee {} to treasury, {} HONEY minted)",
+                "#{} paid {} to {} (rating {}/5, fee {} to treasury, {} HONEY minted)",
                 job.id,
+                fmt_amount(asset, price),
                 c.name,
                 rating,
-                fee,
+                fmt_amount(asset, fee),
                 reward / ONE_HONEY
             ),
         );

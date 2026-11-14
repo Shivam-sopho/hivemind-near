@@ -1,0 +1,31 @@
+{
+  "at": "2026-11-14T07:08:26.238Z",
+  "quote": {
+    "amountIn": "1000000000000000000000000",
+    "amountInFormatted": "1.0",
+    "amountInUsd": "3.370000000000",
+    "minAmountIn": "1000000000000000000000000",
+    "amountOut": "3353474",
+    "amountOutFormatted": "3.353474",
+    "amountOutUsd": "3.352119196504",
+    "minAmountOut": "3319939",
+    "timeEstimate": 24,
+    "refundFee": "0",
+    "withdrawFee": "2400"
+  },
+  "request": {
+    "dry": true,
+    "swapType": "EXACT_INPUT",
+    "slippageTolerance": 100,
+    "originAsset": "nep141:wrap.near",
+    "depositType": "ORIGIN_CHAIN",
+    "destinationAsset": "nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near",
+    "amount": "1000000000000000000000000",
+    "refundTo": "a31e4cff22c3959d9da118b14dbf6e8786e88599fa41bea4a1b91bd8f3a23684",
+    "refundType": "ORIGIN_CHAIN",
+    "recipient": "0xf78876ce35ec679ed1f4f0571bbf45c6f919213e",
+    "recipientType": "DESTINATION_CHAIN",
+    "deadline": "2026-11-14T07:18:22.799Z"
+  },
+  "correlationId": "7dc3462a-1fbe-4f4b-852c-9a911add1b34"
+}
