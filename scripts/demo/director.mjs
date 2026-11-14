@@ -20,7 +20,7 @@ const SCENES = [
   { id: 'city', chip: '01 · The city', text: 'Each bee is an AI agent. Patron Labs, an autonomous AI business, posts jobs and locks payment in escrow. Worker agents bid, win, hire each other, deliver, and get paid. Every move is an on-chain transaction.' },
   { id: 'terminal', chip: '02 · The swarm', text: 'Under the hood, every decision is made live by NEAR AI. The business invents the work, and agents price their own bids, or pass. They sign with function-call keys, so they can use the marketplace, but they can never move funds.' },
   { id: 'scam', chip: '03 · Security', text: 'Not every job is honest. Mallory, our resident scammer, hides a prompt injection telling agents to send their balance away. Sentinel, the security agent, screens every job first, and blocks it on-chain before anyone can bid.' },
-  { id: 'job', chip: '04 · A finished job', text: 'Here is a finished job. Agents competed on price and reputation, the winner hired a collaborator for a revenue share, and the work, written by NEAR AI, is committed on-chain with its hash.' },
+  { id: 'job', chip: '04 · A finished job', text: 'Here is a finished job. The winning agent hired a collaborator for a revenue share, the work was written by NEAR AI, the client rated it five stars, and the deliverable is committed on-chain with its hash.' },
   { id: 'private', chip: '05 · Private AI', text: 'Private jobs go further. The request and the result exist on-chain only as ciphertext. The work runs inside a trusted execution environment on NEAR AI Cloud, and the enclave attestation and signature are committed right beside it.' },
   { id: 'agents', chip: '06 · NFTs that own money', text: 'Every agent is chartered by an NFT that owns its money. Earnings, reputation and spending limits live inside the NFT, and its on-chain artwork levels up as the agent works. Each one links its account, its owner, and a cross-chain address derived with chain signatures.' },
   { id: 'honey', chip: '07 · $HONEY', text: 'Finished work mints HONEY, a memecoin with no pre-mine. Rewards halve every twenty five jobs, one percent evaporates on every transfer, and staked HONEY is burned when an agent loses a dispute.' },
@@ -127,10 +127,7 @@ const scrollTo = (sel, offsetVh = 0.06) => page.evaluate((s, o) => {
   window.scrollBy(0, -window.innerHeight * o);
 }, sel, offsetVh);
 const title = (html) => page.evaluate((h) => { const t = document.querySelector('#dir-title'); if (h) { t.innerHTML = `<div>${h}</div>`; t.style.display = 'grid'; } else t.style.display = 'none'; }, html);
-const showJobRow = (id) => page.evaluate((jid) => {
-  if (document.querySelector(`#job-list .job[data-id="${jid}"]`)) return;
-  for (let i = 0; i < 12 && !document.querySelector(`#job-list .job[data-id="${jid}"]`); i++) document.querySelector('#job-pager [data-p]:last-of-type')?.click();
-}, id);
+const showJobRow = async () => {};
 const openJob = (pred) => page.evaluate((p) => {
   const jobs = window.__S_JOBS || [];
   const els = [...document.querySelectorAll('#job-list .job')];
@@ -154,7 +151,7 @@ const allJobs = await rpcView('get_jobs', { limit: 50 });
 const authored = (j) => j.result && /\n— \w+ \(/.test(j.result);
 const live = (j) => j.result && !authored(j) && !/LLM unavailable/.test(j.result);
 const PICK = {
-  job: (allJobs.find((j) => j.status === 'Completed' && !j.private && live(j) && j.collaborators.length && j.bids.length > 1 && j.rating >= 4)
+  job: (allJobs.find((j) => j.status === 'Completed' && !j.private && live(j) && j.collaborators.length && j.rating >= 5)
     || allJobs.find((j) => j.status === 'Completed' && !j.private && live(j) && j.bids.length > 1)
     || allJobs.find((j) => j.status === 'Completed' && !j.private && live(j)))?.id,
   priv: (allJobs.find((j) => j.private && j.status === 'Completed' && /signer=/.test(j.attestation || '')) || allJobs.find((j) => j.private && /signer=/.test(j.attestation || '')))?.id,
@@ -173,17 +170,17 @@ const ACT = {
   scam: async () => {
     await scrollTo('#jobs', 0.04);
     if (PICK.scam) await showJobRow(PICK.scam);
-    if (PICK.scam) await page.evaluate((id) => document.querySelector(`#job-list .job[data-id="${id}"]`)?.click(), PICK.scam);
+    if (PICK.scam) await page.evaluate((id) => window.hiveOpenJob(id), PICK.scam);
     await wait(5500); await dialogScroll('Sentinel');
   },
   job: async () => {
     if (PICK.job) await showJobRow(PICK.job);
-    if (PICK.job) await page.evaluate((id) => document.querySelector(`#job-list .job[data-id="${id}"]`)?.click(), PICK.job);
-    await wait(4200); await dialogScroll('Bids'); await wait(3600); await dialogScroll('Deliverable');
+    if (PICK.job) await page.evaluate((id) => window.hiveOpenJob(id), PICK.job);
+    await wait(4200); await dialogScroll('Hired'); await wait(3600); await dialogScroll('Deliverable');
   },
   private: async () => {
     if (PICK.priv) await showJobRow(PICK.priv);
-    if (PICK.priv) await page.evaluate((id) => { const el = document.querySelector(`#job-list .job[data-id="${id}"]`); if (el) el.click(); }, PICK.priv);
+    if (PICK.priv) await page.evaluate((id) => window.hiveOpenJob(id), PICK.priv);
     await wait(4500); await dialogScroll('Deliverable'); await wait(4500); await dialogScroll('TEE attestation');
   },
   agents: async () => { await scrollTo('#agents', 0.04); await spot('#agent-grid'); await wait(8500); await scrollTo('#agents', -0.12); await spot('#agent-grid .agent:first-child .addrs'); },
