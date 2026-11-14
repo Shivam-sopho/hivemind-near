@@ -292,6 +292,11 @@ async function recycle() {
     const b = BigInt((await provider.viewAccount({ accountId: a.account })).amount);
     if (b < near(0.25)) { await account(cfg.hq).transfer({ receiverId: a.account, amount: near(0.4) }); say('operator', `gas top-up for ${a.name}`); }
   }
+  // The hive pays for its own storage (jobs, deliverables, events): ~1 NEAR per 100 KB. Keep a free buffer,
+  // otherwise state-growing calls (approve, submit, post) fail with "lacks balance for state".
+  const hs = await provider.viewAccount({ accountId: H });
+  const hiveFree = BigInt(hs.amount) - BigInt(hs.storage_usage) * 10n ** 19n;
+  if (hiveFree < near(1.5)) { await account(cfg.hq).transfer({ receiverId: H, amount: near(3) }); say('operator', `storage top-up: hive had ${fmtNear(hiveFree)} NEAR free, sent 3 NEAR`); }
   const mallory = `mallory.${cfg.hq}`;
   if (loadKeys()[mallory]) {
     const mb = BigInt((await provider.viewAccount({ accountId: mallory })).amount);
