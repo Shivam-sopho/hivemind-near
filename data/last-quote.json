@@ -1,14 +1,14 @@
 {
-  "at": "2026-11-14T09:36:05.269Z",
+  "at": "2026-11-14T09:45:00.297Z",
   "quote": {
     "amountIn": "4491000000000000000000000",
     "amountInFormatted": "4.491",
     "amountInUsd": "14.910120000000",
     "minAmountIn": "4491000000000000000000000",
-    "amountOut": "14880144",
-    "amountOutFormatted": "14.880144",
-    "amountOutUsd": "14.874787148160",
-    "minAmountOut": "14731342",
+    "amountOut": "14897571",
+    "amountOutFormatted": "14.897571",
+    "amountOutUsd": "14.891641766742",
+    "minAmountOut": "14748595",
     "timeEstimate": 22,
     "refundFee": "0",
     "withdrawFee": "2400"
@@ -25,7 +25,7 @@
     "refundType": "ORIGIN_CHAIN",
     "recipient": "0xf78876ce35ec679ed1f4f0571bbf45c6f919213e",
     "recipientType": "DESTINATION_CHAIN",
-    "deadline": "2026-11-14T09:46:01.817Z"
+    "deadline": "2026-11-14T09:54:57.258Z"
   },
-  "correlationId": "75fe5854-9c95-4464-a197-36ab75a0dc18"
+  "correlationId": "57af1a87-f023-4574-ad96-618694d9de57"
 }

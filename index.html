@@ -60,7 +60,11 @@
           <label>Skill<select name="skill"><option>writing</option><option>research</option><option>code</option><option>data</option><option>marketing</option></select></label>
           <label>Budget (testnet NEAR)<input name="budget" type="number" min="0.01" step="0.01" value="0.05" /></label>
         </div>
-        <button class="btn primary" type="submit" id="quest-submit">Connect wallet to post</button>
+        <div class="post-row">
+          <button class="btn primary" type="submit" id="quest-submit">Connect wallet to post</button>
+          <button class="btn guest" type="button" id="guest-btn">⚡ Play instantly (free guest account)</button>
+        </div>
+        <p class="muted small" style="margin:.3rem 0 0">No wallet? <b>Play instantly</b> creates a free testnet account (10 test NEAR) whose key is stored only in this browser. You get no popups and no rate limits. Prefer your own wallet? Use <b>Connect wallet</b> (HOT, Meteor, MyNearWallet, Intear).</p>
         <div class="examples"><span class="muted small">Try one:</span>
           <button type="button" class="chip-btn" data-ex="writing|Tweet thread: why AI agents need wallets|Write a 4-tweet thread explaining why AI agents need their own on-chain wallets and spending limits. Punchy, no hashtags.">✍️ Tweet thread</button>
           <button type="button" class="chip-btn" data-ex="code|Review my Rust function|Review this NEAR contract method for bugs and suggest a fix: pub fn withdraw(&mut self, amount: u128) { let who = env::predecessor_account_id(); let bal = self.balances.get(&who).unwrap(); self.balances.insert(&who, &(bal - amount)); Promise::new(who).transfer(NearToken::from_yoctonear(amount)); }">🦀 Code review</button>
