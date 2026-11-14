@@ -138,6 +138,7 @@ async function refresh() {
     S.jobs = [...S.allJobs.values()].sort((a, b) => b.id - a.id);
     const fresh = events.filter((e) => e.idx > S.lastEventIdx);
     S.events = events;
+    for (const e of events) S.evAll?.set(e.idx, e);
     if (fresh.length) { S.lastEventIdx = events[events.length - 1].idx; city.ingest(fresh, S.lastEventIdx === events[events.length - 1].idx && S.booted); }
     S.booted = true;
     $('#live').textContent = '● live · testnet'; $('#live').classList.add('on');
@@ -186,15 +187,56 @@ async function refreshDaoTxs() {
   } catch (e) { console.warn('dao txs', e); }
 }
 
+// NearBlocks index of every transaction that touched the hive (newest page refreshed every 30 s,
+// older pages back-filled once, gently, to stay under the free API's rate limit).
+const TXS = new Map();
+const mapTx = (t) => ({ hash: t.transaction_hash, ts: Number(String(t.receipt_block?.block_timestamp ?? t.block_timestamp).slice(0, 13)), from: t.predecessor_account_id, method: t.actions?.[0]?.method });
+function addTxs(list) { for (const t of list) { const m = mapTx(t); TXS.set(m.hash + m.ts, m); } S.txs = [...TXS.values()]; }
 async function refreshTxs() {
   try {
-    const r = await fetch(`https://api-testnet.nearblocks.io/v1/account/${cfg.hive}/txns?per_page=100&order=desc`);
-    const d = await r.json();
-    S.txs = (d.txns || []).map((t) => ({ hash: t.transaction_hash, ts: Number(String(t.receipt_block?.block_timestamp ?? t.block_timestamp).slice(0, 13)), from: t.predecessor_account_id, method: t.actions?.[0]?.method }));
-    renderFeed(); renderEconomy();
+    const d = await (await fetch(`https://api-testnet.nearblocks.io/v1/account/${cfg.hive}/txns?per_page=100`)).json();
+    addTxs(d.txns || []);
+    S.deepTxsDone = true;
+    renderFeed(); renderEconomy(); refreshOpenHistory();
   } catch (e) { console.warn('nearblocks', e); }
 }
+async function deepTxs(cursor) {
+  for (let page = 0; cursor && page < 15; page++) {
+    await new Promise((z) => setTimeout(z, 2500));
+    try {
+      const r = await fetch(`https://api-testnet.nearblocks.io/v1/account/${cfg.hive}/txns?per_page=100&cursor=${encodeURIComponent(cursor)}`);
+      if (r.status === 429) { await new Promise((z) => setTimeout(z, 20000)); page--; continue; }
+      const d = await r.json();
+      addTxs(d.txns || []); cursor = d.cursor;
+      refreshOpenHistory();
+    } catch { break; }
+  }
+  S.deepTxsDone = true; refreshOpenHistory();
+}
+
+// Exact event → transaction map, published by the agents (they read the hive's EVENT_JSON logs from
+// each transaction outcome). Hosted on the repo's `txmap` branch; no indexer needed.
+S.txmap = {};
+async function refreshTxmap() {
+  try { S.txmap = await (await fetch(`https://raw.githubusercontent.com/Shivam-sopho/hivemind-near/txmap/txmap.json?t=${Math.floor(Date.now() / 120000)}`)).json(); renderFeed(); renderEconomy(); refreshOpenHistory(); } catch (e) { console.warn('txmap', e); }
+}
+
+// Full on-chain event log (the hive's event Vector), back-filled once and then kept current.
+S.evAll = new Map();
+async function loadAllEvents() {
+  try {
+    const total = S.stats?.events || 0;
+    for (let from = 0; from < total; from += 100) {
+      if (S.evAll.has(Math.min(from + 99, total - 1)) && S.evAll.has(from)) continue;
+      const page = await view(cfg.hive, 'get_events', { from, limit: 100 });
+      for (const e of page) S.evAll.set(e.idx, e);
+    }
+    S.evLoaded = true; refreshOpenHistory();
+  } catch (e) { console.warn('events backfill', e); }
+}
+
 function txFor(e) {
+  if (S.txmap && S.txmap[e.idx]) return S.txmap[e.idx];
   let best = null;
   for (const t of S.txs) {
     const dt = Math.abs(t.ts - e.ts);
@@ -298,6 +340,23 @@ function nextStep(j, isMine) {
   return `<div class="next"><b>What happens next</b><span>${msg}</span></div>`;
 }
 
+const KIND_LABEL = { job_posted: 'Posted & escrowed', job_screened: 'Screened by Sentinel', job_blocked: 'Blocked by Sentinel', bid: 'Bid', awarded: 'Awarded', hired: 'Collaborator hired', submitted: 'Delivered', job_completed: 'Approved & paid', disputed: 'Disputed', slashed: 'DAO: refunded & slashed', cancelled: 'Cancelled' };
+function historyHtml(j) {
+  const evs = [...(S.evAll?.values() || [])].filter((e) => e.job === j.id).sort((a, b) => a.idx - b.idx);
+  if (!evs.length) return `<p class="muted small">${S.evLoaded ? 'No events found.' : 'Loading the on-chain event log…'}</p>`;
+  const rows = evs.map((e) => {
+    const h = txFor(e);
+    const link = h ? `<a class="txl" href="${EXPLORER}/txns/${h}" target="_blank" rel="noopener" title="${h}">tx ↗</a>` : `<span class="muted mono small" title="not in the transaction map yet (new events appear within a few minutes)">tx pending</span>`;
+    return `<li><time>${new Date(e.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time><b>${esc(KIND_LABEL[e.kind] || e.kind)}</b><span class="muted">${esc(e.text.length > 110 ? e.text.slice(0, 110) + '…' : e.text)}</span>${link}</li>`;
+  }).join('');
+  const linked = evs.filter((e) => txFor(e)).length;
+  return `<ol class="timeline">${rows}</ol><div class="muted small">${linked}/${evs.length} steps linked to their NEAR testnet transaction · <a href="${EXPLORER}/address/${cfg.hive}" target="_blank" rel="noopener">all hive transactions ↗</a></div>`;
+}
+function refreshOpenHistory() {
+  const box = document.querySelector('#job-history');
+  if (box && $('#job-dialog').open) { const j = S.jobs.find((x) => x.id === Number(box.dataset.job)); if (j) box.innerHTML = historyHtml(j); }
+}
+
 function openJob(id) {
   const j = S.jobs.find((x) => x.id === id); if (!j) return;
   const A = agentByToken();
@@ -312,6 +371,7 @@ function openJob(id) {
     <h4>Bids</h4>${j.bids.map((b) => `<div class="small" style="display:flex;justify-content:space-between;gap:1rem;margin:.3rem 0"><span><b>${esc(A[b.token_id]?.name)}</b> (rep ${A[b.token_id]?.reputation}) · ${amt(j.asset, b.price)}<br><span class="muted">${esc(b.pitch)}</span></span>${isMine && j.status === 'Open' ? `<button class="btn sm primary" data-award="${b.token_id}">Award</button>` : ''}</div>`).join('') || '<p class="muted small">none yet</p>'}
     ${j.collaborators.length ? `<h4>Hired collaborators</h4><div class="small">${j.collaborators.map(([t, bps]) => `${esc(A[t]?.name)} for ${bps / 100}% revenue share`).join('<br>')}</div>` : ''}
     ${j.result ? `<h4>Deliverable</h4><pre class="deliv">${sealed(j.result)}</pre><div class="small muted mono">sha256 ${esc(j.result_hash)}</div>` : ''}
+    <h4>On-chain history</h4><div id="job-history" data-job="${j.id}">${historyHtml(j)}</div>
     ${j.attestation ? `<h4>TEE attestation commitment</h4><div class="small mono" style="word-break:break-all">${esc(j.attestation)}</div>` : ''}
     ${isMine && j.status === 'Submitted' ? `<h4>Rate & pay</h4><div class="stars">${[1, 2, 3, 4, 5].map((n) => `<button data-rate="${n}" title="${n}">★</button>`).join('')}</div><button class="btn sm" data-dispute>Dispute → DAO</button>` : ''}`;
   const act = async (label, fn) => {
@@ -602,8 +662,11 @@ renderThesis();
 initWallet();
 setInterval(() => { if (!document.hidden) refresh(); }, 15000);
 setInterval(() => { if (!document.hidden) refreshSlow(); }, 90000);
+refreshTxmap();
+setInterval(refreshTxmap, 120000);
 refreshTxs();
-setInterval(refreshTxs, 30000);
+setInterval(refreshTxs, 60000);
+loadAllEvents();
 refreshDaoTxs();
 setInterval(refreshDaoTxs, 60000);
 

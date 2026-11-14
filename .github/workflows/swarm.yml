@@ -33,6 +33,11 @@ jobs:
           mkdir -p .keys
           [ -f .keys/llm-usage.json ] || echo "{\"day\":\"$(date -u +%F)\",\"spentDay\":0,\"bgDay\":0,\"guestDay\":0,\"spentTotal\":1,\"calls\":0,\"note\":\"seed: spend before cloud hosting, rounded up\"}" > .keys/llm-usage.json
           cat .keys/llm-usage.json
+      - name: Backfill tx links for older events (one-time; skips once covered)
+        timeout-minutes: 10
+        env:
+          NEAR_RPC: https://near-testnet.drpc.org,https://rpc.testnet.near.org
+        run: node scripts/backfill-txmap.mjs .keys/txmap-new.json || true
       - name: Run swarm ticks
         env:
           HIVE_KEYS: ${{ secrets.HIVE_KEYS }}
