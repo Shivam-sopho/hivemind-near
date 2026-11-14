@@ -54,6 +54,10 @@ async function tx(methodName, args, deposit = '0', gas = '150000000000000') {
   return w.signAndSendTransaction({ receiverId: cfg.hive, actions: [{ type: 'FunctionCall', params: { methodName, args, gas, deposit } }] });
 }
 const toYocto = (n) => (BigInt(Math.round(Number(n) * 1e6)) * 10n ** 18n).toString();
+document.querySelectorAll('.chip-btn[data-ex]').forEach((b) => (b.onclick = () => {
+  const [skill, title, spec] = b.dataset.ex.split('|');
+  const f = $('#quest-form'); f.title.value = title; f.spec.value = spec; f.skill.value = skill; f.title.focus();
+}));
 $('#quest-form').onsubmit = async (e) => {
   e.preventDefault();
   if (!me) return connector?.connect();
@@ -225,6 +229,28 @@ function renderJobs() {
   $('#job-pager').querySelectorAll('[data-p]').forEach((b) => (b.onclick = () => { S.page = Number(b.dataset.p); renderJobs(); $('#jobs').scrollIntoView({ behavior: 'smooth' }); }));
 }
 
+function nextStep(j, isMine) {
+  const who = isMine ? 'you' : `the client (${esc(short(j.client))})`;
+  const A = agentByToken();
+  const screened = j.flags.length > 0;
+  let msg;
+  switch (j.status) {
+    case 'Open':
+      msg = !screened ? 'Waiting for Sentinel to screen this job (next agent tick, ≈30 s).'
+        : !j.bids.length ? `Screened. Waiting for agents with the <b>${esc(j.skill)}</b> skill to bid (≈30–60 s).`
+        : `${j.bids.length} bid${j.bids.length > 1 ? 's' : ''} in. Waiting for <b>${who}</b> to award one.${isMine ? ' Press <b>Award</b> below.' : ' Only the client can award: connect that wallet to continue.'}`;
+      break;
+    case 'Flagged': msg = 'Blocked by Sentinel: agents will not bid. The client (or the DAO) can cancel it to refund the budget.'; break;
+    case 'Assigned': msg = `${esc(A[j.assignee]?.name || 'The agent')} is working on it with NEAR AI. The delivery usually lands within 1–2 agent ticks.`; break;
+    case 'Submitted': msg = `Delivered. Waiting for <b>${who}</b> to rate it (pays the agent) or dispute it (the DAO decides).${isMine ? ' Use the stars below.' : ''}`; break;
+    case 'Completed': msg = `Done: rated ${'★'.repeat(j.rating || 0)}. The agent was paid, the treasury took 5%, and HONEY was minted.`; break;
+    case 'Disputed': msg = 'Disputed. The council files a DAO proposal on the next tick to refund (and slash) or pay the agent.'; break;
+    case 'Refunded': msg = 'Resolved by DAO vote: the client was refunded and the agent was slashed.'; break;
+    default: msg = 'Closed.';
+  }
+  return `<div class="next"><b>What happens next</b><span>${msg}</span></div>`;
+}
+
 function openJob(id) {
   const j = S.jobs.find((x) => x.id === id); if (!j) return;
   const A = agentByToken();
@@ -232,6 +258,7 @@ function openJob(id) {
   const sealed = (s) => (s && s.startsWith('enc:v1:') ? `<span class="muted">🔒 sealed ciphertext (${s.length} bytes). Plaintext was only processed inside NEAR AI Cloud TEE inference.</span>` : esc(s));
   $('#job-detail').innerHTML = `
     <h3>#${j.id} ${esc(j.title)} <span class="chip s-${j.status}">${j.status}</span></h3>
+    ${nextStep(j, isMine)}
     <p class="muted small">client ${esc(j.client)} · budget ${amt(j.asset, j.budget)}${j.price !== '0' ? ` · price ${amt(j.asset, j.price)}` : ''} · skill ${esc(j.skill)}</p>
     <h4>Spec</h4><pre class="deliv">${sealed(j.spec)}</pre>
     ${j.flags.length ? `<h4>Sentinel screening</h4>${j.flags.map((f) => `<div class="small">severity <b>${f.severity}</b> by ${esc(A[f.by]?.name)}: ${esc(f.reason)}</div>`).join('')}` : ''}
@@ -250,7 +277,7 @@ function renderMyQuests() {
   const el = $('#my-quests');
   if (!me) { el.innerHTML = '<h3>Your quests</h3><p class="muted">Connect a NEAR testnet wallet (HOT, Meteor, MyNearWallet, Intear…) to see your quests.</p>'; return; }
   const mine = S.jobs.filter((j) => j.client === me);
-  el.innerHTML = `<h3>Your quests <span class="muted small">${esc(me)}</span></h3>` + (mine.map((j) => `<div class="job" data-id="${j.id}" style="grid-template-columns:40px 1fr auto"><span class="id">#${j.id}</span><div><div class="t">${esc(j.title)}</div><div class="sub">${j.bids.length} bids · ${j.status === 'Open' && j.bids.length ? 'pick a winner →' : j.status === 'Submitted' ? 'delivered: rate it →' : ''}</div></div><span class="chip s-${j.status}">${j.status}</span></div>`).join('') || '<p class="muted">No quests yet. Post one!</p>');
+  el.innerHTML = `<h3>Your quests <span class="muted small">${esc(me)}</span></h3>` + (mine.map((j) => `<div class="job" data-id="${j.id}" style="grid-template-columns:40px 1fr auto"><span class="id">#${j.id}</span><div><div class="t">${esc(j.title)}</div><div class="sub">${j.bids.length} bids · ${j.status === 'Open' && j.bids.length ? '👉 bids are in: award one' : j.status === 'Open' ? 'waiting for screening / bids…' : j.status === 'Assigned' ? 'agent is working…' : j.status === 'Submitted' ? '👉 delivered: rate it' : ''}</div></div><span class="chip s-${j.status}">${j.status}</span></div>`).join('') || '<p class="muted">No quests yet. Post one!</p>');
   el.querySelectorAll('.job').forEach((x) => (x.onclick = () => openJob(Number(x.dataset.id))));
 }
 
