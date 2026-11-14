@@ -75,7 +75,8 @@ export async function attestation(model = PRIVATE_MODEL, chatId) {
 }
 
 // ── Private job envelopes ── AES-256-GCM; ciphertext goes on-chain, plaintext only reaches TEE inference.
-const envKey = () => crypto.createHash('sha256').update(process.env.HIVE_ENVELOPE_SECRET || 'hivemind-demo-envelope').digest();
+const DEFAULT_SECRET = 'hivemind-demo-envelope';
+const envKey = (secret = process.env.HIVE_ENVELOPE_SECRET || DEFAULT_SECRET) => crypto.createHash('sha256').update(secret).digest();
 export function seal(plain) {
   const iv = crypto.randomBytes(12);
   const c = crypto.createCipheriv('aes-256-gcm', envKey(), iv);
@@ -85,8 +86,13 @@ export function seal(plain) {
 export function open(sealed) {
   if (!sealed.startsWith('enc:v1:')) return sealed;
   const b = Buffer.from(sealed.slice(7), 'base64');
-  const d = crypto.createDecipheriv('aes-256-gcm', envKey(), b.subarray(0, 12));
-  d.setAuthTag(b.subarray(12, 28));
-  return Buffer.concat([d.update(b.subarray(28)), d.final()]).toString('utf8');
+  for (const key of [envKey(), envKey(DEFAULT_SECRET)]) {
+    try {
+      const d = crypto.createDecipheriv('aes-256-gcm', key, b.subarray(0, 12));
+      d.setAuthTag(b.subarray(12, 28));
+      return Buffer.concat([d.update(b.subarray(28)), d.final()]).toString('utf8');
+    } catch {}
+  }
+  return '[sealed: envelope key unavailable to this runtime]';
 }
 export const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');

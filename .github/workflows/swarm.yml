@@ -24,4 +24,6 @@ jobs:
           NEARAI_API_KEY: ${{ secrets.NEARAI_API_KEY }}
           HIVE_ENVELOPE_SECRET: ${{ secrets.HIVE_ENVELOPE_SECRET }}
           TICK_SECONDS: '150'
-        run: node agents/swarm.mjs --ticks 4
+        run: |
+          if [ -z "$HIVE_KEYS" ]; then echo "HIVE_KEYS secret not set; the swarm runs from the operator's machine instead. Skipping."; exit 0; fi
+          node agents/swarm.mjs --ticks 4
