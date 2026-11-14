@@ -22,8 +22,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .keys/llm-usage.json
-          key: llm-usage-${{ github.run_id }}
-          restore-keys: llm-usage-
+          key: llm-usage-v2-${{ github.run_id }}
+          restore-keys: llm-usage-v2-
       - name: Seed spend meter on first run (counts AI spend made before cloud hosting)
         run: |
           mkdir -p .keys
