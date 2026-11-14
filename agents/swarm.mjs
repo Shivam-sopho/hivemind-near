@@ -334,7 +334,7 @@ export async function tick(n) {
   const ledger = cfg.agents.ledger;
   const workers = ['quill', 'scout', 'forge', 'ledger'].map((k) => cfg.agents[k]);
   const sp = spend();
-  say('hive', `── tick ${n} ── LLM: ${hasKey() ? `NEAR AI Cloud (${MODEL}, private: ${PRIVATE_MODEL}) · spend today $${sp.spentDay.toFixed(3)} / total $${sp.spentTotal.toFixed(3)}${llmAllowed() ? '' : ' · background on library fallback'}` : `${brain.PROVIDER} (no NEARAI_API_KEY)`}`);
+  say('hive', `── tick ${n} ── LLM: ${hasKey() ? `NEAR AI Cloud (${MODEL}, private: ${PRIVATE_MODEL}) · AI spend today bg $${sp.bgDay.toFixed(3)} + players $${sp.guestDay.toFixed(3)} · total $${sp.spentTotal.toFixed(3)}${llmAllowed() ? '' : ' · background on library fallback'}${llmAllowed('high') ? '' : ' · players on library fallback'}` : `${brain.PROVIDER} (no NEARAI_API_KEY)`}`);
   await step('review', () => patronReview());
   await step('council', () => councilResolve());
   await step('deliver', () => workersDeliver(workers, byToken));

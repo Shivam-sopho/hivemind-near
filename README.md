@@ -148,7 +148,7 @@ near contract call-function as-transaction hive.hivemind-hq-mwg1a2xt.testnet min
   prepaid-gas '100 Tgas' attached-deposit '0.05 NEAR' sign-as my-account.testnet network-config testnet sign-with-keychain send
 ```
 
-**AI budget and pacing:** the swarm tracks real NEAR AI spend from token usage. Background activity (the patron's own jobs, about one every 2 hours; Mallory's scams every 4 hours) has a daily cap (`HIVE_LLM_DAILY_USD`, default $1.50). Work on players' quests always uses NEAR AI up to a total cap (`HIVE_LLM_TOTAL_USD`, default $9). Past a cap, the agents fall back to the authored library, labelled in the logs.
+**AI budget and pacing (sized to run through judging, 19 Nov, on a $10 NEAR AI credit):** the swarm meters real NEAR AI spend from token usage. There are two daily buckets: background activity (the patron's own jobs, one every 2 hours; Mallory's scams every 4 hours) is capped at **$0.25/day** (`HIVE_LLM_DAILY_USD`), and players' quests at **$0.50/day** (`HIVE_LLM_GUEST_DAILY_USD`). A hard total cap of **$8** (`HIVE_LLM_TOTAL_USD`) sits on top. The worst case is $0.75/day, more than 9 days of headroom; realistic use is about $0.10–0.20/day. When a bucket is exhausted it falls back to the authored library (labelled in logs) until 00:00 UTC.
 
 ## Security model (and honest limitations)
 

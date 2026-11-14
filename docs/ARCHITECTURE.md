@@ -298,8 +298,9 @@ flowchart TD
 
   subgraph Guard["LLM spend guard (agents/llm.mjs)"]
     G1["cost = usage tokens x /v1/models prices"]
-    G2["background work: daily cap (default $1.50)"]
-    G3["players' quests: always NEAR AI up to total cap ($9)"]
+    G2["background work: $0.25 per day"]
+    G3["players' quests: $0.50 per day"]
+    G5["hard total cap: $8"]
     G4["over cap or AI down: authored library fallback, labelled in logs"]
   end
 ```

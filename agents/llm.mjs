@@ -9,20 +9,29 @@ export const hasKey = () => Boolean(process.env.NEARAI_API_KEY);
 
 // ── Spend guard ──
 // Real cost is computed from the token usage NEAR AI returns x the per-token prices from /v1/models.
-// Background activity (the patron's own jobs, screening/bidding on them) stops using the LLM once the
-// daily cap is reached and falls back to the authored library; work for real users' quests ("high"
-// priority) keeps using NEAR AI until the hard total cap, so judges always get live AI.
+// Two daily buckets so the credit lasts: background activity (the patron's own jobs and the work on them)
+// and players' quests ("high" priority) each have their own daily cap; a hard total cap sits on top.
+// When a bucket is exhausted, that bucket falls back to the authored library until 00:00 UTC.
+// Defaults: $0.25/day background + $0.50/day players, $8 total → worst case > 9 days on a $10 credit.
 import fs from 'node:fs';
 const USAGE_FILE = process.env.HIVE_USAGE_FILE || '.keys/llm-usage.json';
-const DAILY_USD = Number(process.env.HIVE_LLM_DAILY_USD || 1.5);
-const TOTAL_USD = Number(process.env.HIVE_LLM_TOTAL_USD || 9);
+const DAILY_USD = Number(process.env.HIVE_LLM_DAILY_USD || 0.25);
+const GUEST_DAILY_USD = Number(process.env.HIVE_LLM_GUEST_DAILY_USD || 0.5);
+const TOTAL_USD = Number(process.env.HIVE_LLM_TOTAL_USD || 8);
 let PRICES = null;
 const today = () => new Date().toISOString().slice(0, 10);
 function readUsage() {
-  try { const u = JSON.parse(fs.readFileSync(USAGE_FILE, 'utf8')); if (u.day !== today()) { u.day = today(); u.spentDay = 0; } return u; } catch { return { day: today(), spentDay: 0, spentTotal: 0, calls: 0 }; }
+  const fresh = { day: today(), spentDay: 0, bgDay: 0, guestDay: 0, spentTotal: 0, calls: 0 };
+  try {
+    const u = { ...fresh, ...JSON.parse(fs.readFileSync(USAGE_FILE, 'utf8')) };
+    if (u.day !== today()) { u.day = today(); u.spentDay = 0; u.bgDay = 0; u.guestDay = 0; }
+    return u;
+  } catch { return fresh; }
 }
-function addUsage(usd) {
-  const u = readUsage(); u.spentDay += usd; u.spentTotal += usd; u.calls = (u.calls || 0) + 1;
+function addUsage(usd, priority) {
+  const u = readUsage();
+  u.spentDay += usd; u.spentTotal += usd; u.calls = (u.calls || 0) + 1;
+  if (priority === 'high') u.guestDay += usd; else u.bgDay += usd;
   try { fs.mkdirSync(USAGE_FILE.replace(/\/[^/]+$/, ''), { recursive: true }); fs.writeFileSync(USAGE_FILE, JSON.stringify(u)); } catch {}
 }
 export function spend() { return readUsage(); }
@@ -30,7 +39,7 @@ export function llmAllowed(priority = 'normal') {
   if (!hasKey()) return false;
   const u = readUsage();
   if (u.spentTotal >= TOTAL_USD) return false;
-  return priority === 'high' || u.spentDay < DAILY_USD;
+  return priority === 'high' ? u.guestDay < GUEST_DAILY_USD : u.bgDay < DAILY_USD;
 }
 async function prices() {
   if (PRICES) return PRICES;
@@ -55,7 +64,7 @@ export async function chat(messages, { model = MODEL, maxTokens = 700, json = fa
       });
       if (!r.ok) throw new Error(`NEAR AI ${r.status}: ${(await r.text()).slice(0, 200)}`);
       const d = await r.json();
-      try { const p = (await prices())[model] || {}; const u = d.usage || {}; addUsage((u.prompt_tokens || 0) * Number(p.prompt || 0) + (u.completion_tokens || 0) * Number(p.completion || 0)); } catch {}
+      try { const p = (await prices())[model] || {}; const u = d.usage || {}; addUsage((u.prompt_tokens || 0) * Number(p.prompt || 0) + (u.completion_tokens || 0) * Number(p.completion || 0), priority); } catch {}
       const text = d.choices?.[0]?.message?.content?.trim() ?? '';
       const clean = stripThink(text);
       if (!clean) {
