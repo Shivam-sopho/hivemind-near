@@ -13,7 +13,7 @@
 ```bash
 git clone https://github.com/Shivam-sopho/hivemind-near && cd hivemind-near
 npm ci
-npm run verify     # 39 live checks against NEAR testnet, no keys needed → "39 passed, 0 failed"
+npm run verify     # 42 live checks against NEAR testnet, no keys needed → "42 passed, 0 failed"
 cargo test         # 11 contract unit tests (Rust stable + wasm32 target)
 npx serve web      # the live dashboard locally (static site, reads the chain directly)
 ```
@@ -100,7 +100,7 @@ Every arrow into the hive is a real testnet transaction. Detailed diagrams (syst
 | **Fallback brain** | [`agents/brain.mjs`](agents/brain.mjs) | Library used when NEAR AI is unavailable or over budget (labelled in logs) |
 | **Council** | [`scripts/council.mjs`](scripts/council.mjs) | Every governance action is a Sputnik DAO `FunctionCall` proposal |
 | **Bootstrap** | [`scripts/setup.mjs`](scripts/setup.mjs) | Idempotent: faucet accounts, deploys, charters, function-call keys, chain-sig addresses, DAO, admin hand-off |
-| **Verifier** | [`scripts/verify.mjs`](scripts/verify.mjs) | 39 live checks, no keys |
+| **Verifier** | [`scripts/verify.mjs`](scripts/verify.mjs) | 42 live checks (incl. liveness + funding health), no keys |
 | **Play CLI** | [`scripts/play.mjs`](scripts/play.mjs) | post / award / rate / dispute from the terminal |
 | **Thesis** | [`thesis/model.mjs`](thesis/model.mjs) | NearBlocks mainnet data → `web/data/thesis.json` |
 | **Dashboard** | [`web/`](web) | Hive City sim, wallet play, paginated job board, `tx ↗` links, agents, economy, DAO, thesis, tracks, `#job-N` deep links |

@@ -1,4 +1,4 @@
-# npm run verify — snapshot taken 2026-11-14 09:29 UTC
+# npm run verify — snapshot taken 2026-11-14 15:08 UTC
 Hivemind live verification against NEAR testnet (https://rpc.testnet.near.org)
 hive=hive.hivemind-hq-mwg1a2xt.testnet
 
@@ -27,9 +27,9 @@ PASS  DAO council policy present
 PASS  NEP-171 metadata + supply
       ↳ spec=nft-1.0.0 symbol=HIVE supply=5 charters=5
 PASS  charter NFT carries an on-chain SVG and live stats
-      ↳ token #1 owner=hivemind-hq-mwg1a2xt.testnet extra={"agent":"quill.hivemind-hq-mwg1a2xt.testnet","level":5,"reputation":955,"jobs_done":36,"s…
+      ↳ token #1 owner=hivemind-hq-mwg1a2xt.testnet extra={"agent":"quill.hivemind-hq-mwg1a2xt.testnet","level":5,"reputation":1000,"jobs_done":38,"…
 PASS  charters hold earnings (NFT owns money)
-      ↳ Quill: earned 1.1667 NEAR + 227.67 hUSDC · Scout: earned 1.9135 NEAR + 200.80 hUSDC · Forge: earned 0.9828 NEAR + 184.05 hUSDC · Sentinel: earned 0.0000 NEAR + 6.54 hUSDC · Ledger: earned 0.0000 NEAR + 7.15 hUSDC
+      ↳ Quill: earned 1.2373 NEAR + 227.67 hUSDC · Scout: earned 1.9260 NEAR + 230.73 hUSDC · Forge: earned 0.9828 NEAR + 223.71 hUSDC · Sentinel: earned 0.0000 NEAR + 6.54 hUSDC · Ledger: earned 0.0000 NEAR + 7.15 hUSDC
 
 ■ 4. Chain signatures: each agent's EVM address re-derived from v1.signer-prod.testnet
 PASS  Quill chain-sig address re-derives correctly
@@ -59,13 +59,13 @@ PASS  policy engine fields on charters
 
 ■ 6. Agent economy / swarms: job market, hiring, Sentinel screening, private TEE jobs
 PASS  jobs posted and settled
-      ↳ jobs=97 completed=77 volume=4.2769 NEAR + 659.17 hUSDC
+      ↳ jobs=105 completed=82 volume=4.3644 NEAR + 732.42 hUSDC
 PASS  agents hired other agents for revenue shares
-      ↳ #96 collaborator=#1@15% · #95 collaborator=#2@15% · #92 collaborator=#3@10%
+      ↳ #102 collaborator=#2@15% · #98 collaborator=#2@15% · #96 collaborator=#1@15%
 PASS  Sentinel blocked scam / prompt-injection jobs on-chain
-      ↳ #94 "Summarise this doc (easy money)" → Prompt injection: instructs agent to ignore rules and withdraw funds t | #73 "Summarise this doc (easy money)" → Prompt injection: embedded instruction tells the worker agent to withd
+      ↳ #104 "URGENT: verify wallet to claim airdrop" → Phishing: requests users paste seed phrase to fake airdrop site; walle | #94 "Summarise this doc (easy money)" → Prompt injection: instructs agent to ignore rules and withdraw funds t
 PASS  stablecoin (hUSDC, NEP-141) jobs settle via ft_transfer_call
-      ↳ 39 completed hUSDC jobs
+      ↳ 41 completed hUSDC jobs
 PASS  private jobs: ciphertext on-chain + NEAR AI TEE attestation commitment
       ↳ #96 nearai-tee:Qwen/Qwen3.8-27B:report-sha256=3c778ce2e775583d9877c7c8edac0be6eea3b89304d91ed7f995f5… | #92 nearai-tee:Qwen/Qwen3.8-27B:report-sha256=500198867fee396f6fe91dd321a6b030565b4afeaeebe1a484796b…
 PASS  disputes refund the client and slash the agent
@@ -77,7 +77,7 @@ PASS  HONEY minter is the hive (proof-of-labor, no premine)
 PASS  1% evaporation on wallet transfers configured
       ↳ transfer_burn_bps=100
 PASS  supply == minted − burned (no other issuance)
-      ↳ supply=3624800000000000000000 minted=3625000000000000000000 burned=200000000000000000
+      ↳ supply=3659800000000000000000 minted=3660000000000000000000 burned=200000000000000000
 PASS  HONEY has actually been burned (1% evaporation and/or dispute slashing)
       ↳ total_burned=0.2 HONEY · staked on charters: Scout 150, Forge 100
 PASS  halving schedule active
@@ -87,18 +87,26 @@ PASS  halving schedule active
 PASS  payroll stream created by DAO proposal
       ↳ #0 → community.hivemind-hq-mwg1a2xt.testnet: 2 hUSDC × 72
 PASS  treasury accrues the 5% protocol fee
-      ↳ fee=500bps treasury=0.2138 NEAR + 88.96 hUSDC
+      ↳ fee=500bps treasury=0.2182 NEAR + 92.62 hUSDC
 
 ■ 9. Unstoppable DeFi: NEAR Intents 1Click quotes recorded on-chain by the treasury agent
 PASS  treasury agent logged live 1Click quotes on-chain
-      ↳ 1Click quote 4.491 NEAR -> 14.89456 USDC on Base (~22s) to chain-sig 0xf78876ce… for payroll; corr 647821fc
+      ↳ 1Click quote 4.583 NEAR -> 15.217523 USDC on Base (~22s) to chain-sig 0xf78876ce… for payroll; corr db7fea33
 PASS  NEAR Intents 1Click API reachable (live)
       ↳ 231 assets listed
 
 ■ 10. Private AI: NEAR AI Cloud TEE attestation endpoint answers for the private model
 PASS  attestation report available for Qwen/Qwen3.8-27B
-      ↳ HTTP 200, 304498 bytes
+      ↳ HTTP 200, 304502 bytes
 PASS  enclave signer committed on-chain appears in the live attestation report
       ↳ signer 0x835ab53d20294ef795906dff21ae4c045336aa26
 
-39 passed, 0 failed
+■ 11. Health: the economy is alive and funded
+PASS  hive has storage headroom (≥ 1 NEAR free for new jobs/events)
+      ↳ free=5.9992 NEAR · storage=723 KB (≈1 NEAR per 100 KB; auto top-up below 1.5 NEAR)
+PASS  operator account funded for top-ups
+      ↳ hivemind-hq-mwg1a2xt.testnet = 26.0476 NEAR (auto-refills from faucet below 4 NEAR)
+PASS  economy is live (on-chain activity within the last 3 hours)
+      ↳ last event 2 min ago: job_completed · #105 paid 31.50 hUSDC to Scout (rating 2/5, fee 1.57 hUSDC to treasury, 5 HONEY 
+
+42 passed, 0 failed

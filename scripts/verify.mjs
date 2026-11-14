@@ -156,5 +156,16 @@ try {
   if (signer) ok('enclave signer committed on-chain appears in the live attestation report', body.toLowerCase().includes(signer.toLowerCase()), `signer ${signer}`);
 } catch (e) { ok('NEAR AI attestation endpoint reachable', false, e.message); }
 
+// ── 11. Liveness & operational health ──
+section('11. Health: the economy is alive and funded');
+const hiveAcc = await account(cfg.hive);
+const hiveFree = BigInt(hiveAcc.amount) - BigInt(hiveAcc.storage_usage) * 10n ** 19n;
+ok('hive has storage headroom (≥ 1 NEAR free for new jobs/events)', hiveFree >= 10n ** 24n, `free=${yocto(hiveFree)} NEAR · storage=${(hiveAcc.storage_usage / 1024).toFixed(0)} KB (≈1 NEAR per 100 KB; auto top-up below 1.5 NEAR)`);
+const hq = await account(cfg.hq);
+ok('operator account funded for top-ups', BigInt(hq.amount) >= 3n * 10n ** 24n, `${cfg.hq} = ${yocto(hq.amount)} NEAR (auto-refills from faucet below 4 NEAR)`);
+const lastEv = events[events.length - 1];
+const ageMin = (Date.now() - lastEv.ts) / 60000;
+ok('economy is live (on-chain activity within the last 3 hours)', ageMin < 180, `last event ${ageMin.toFixed(0)} min ago: ${lastEv.kind} · ${lastEv.text.slice(0, 80)}`);
+
 console.log(`\n${fail === 0 ? '\x1b[32m' : '\x1b[31m'}${pass} passed, ${fail} failed\x1b[0m`);
 process.exit(fail === 0 ? 0 : 1);

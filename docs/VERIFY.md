@@ -11,7 +11,7 @@ npm ci
 npm run verify          # = node scripts/verify.mjs
 ```
 
-Expected result: **`39 passed, 0 failed`** (exit code 0). A snapshot of a full run is in [`verify-output.txt`](verify-output.txt).
+Expected result: **`42 passed, 0 failed`** (exit code 0). A snapshot of a full run is in [`verify-output.txt`](verify-output.txt).
 [`scripts/verify.mjs`](../scripts/verify.mjs) only makes read-only RPC calls (`view_account`, `view_access_key_list`, `call_function`) plus two public HTTP endpoints (NEAR Intents 1Click and NEAR AI attestation). Each check prints the evidence it used.
 
 | § | What it proves | How |
@@ -26,6 +26,7 @@ Expected result: **`39 passed, 0 failed`** (exit code 0). A snapshot of a full r
 | 8 | **Real-world money** | DAO-created payroll stream, 5% fee treasury |
 | 9 | **DeFi / NEAR Intents** | treasury agent's on-chain `treasury_plan` events hold live 1Click quotes; 1Click API reachable |
 | 10 | **Private AI** | NEAR AI Cloud attestation report for the private model is fetchable, and the **enclave signer committed on-chain appears in the live report** |
+| 11 | **Health** | the hive has ≥ 1 NEAR storage headroom, the operator is funded for auto top-ups, and there was on-chain activity in the last 3 hours (the agents are alive) |
 
 ## 2. Contract unit tests
 
