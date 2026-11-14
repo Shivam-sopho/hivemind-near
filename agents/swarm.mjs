@@ -12,6 +12,20 @@ import { chat, chatJson, attestation, seal, open, sha256, hasKey, llmAllowed, sp
 // Pacing: background job creation is slow (saves AI budget); work on existing jobs runs every tick.
 const POST_EVERY_MIN = Number(process.env.HIVE_POST_EVERY_MIN || 120);
 const SCAM_EVERY_MIN = Number(process.env.HIVE_SCAM_EVERY_MIN || 240);
+// All recent jobs (up to 200), cached briefly: delivery/review must also see older jobs (e.g. a player's quest).
+let _jobsCache = { at: 0, jobs: [] };
+async function activeJobs() {
+  if (Date.now() - _jobsCache.at < 8000) return _jobsCache.jobs;
+  const out = []; let before;
+  for (let i = 0; i < 4; i++) {
+    const page = await view(H, 'get_jobs', { before, limit: 50 });
+    if (!page.length) break;
+    out.push(...page); before = Math.min(...page.map((j) => j.id));
+    if (before <= 1) break;
+  }
+  _jobsCache = { at: Date.now(), jobs: out };
+  return out;
+}
 const isGuest = (j) => j.client !== cfg.patron && !j.client.startsWith('mallory.');
 const prio = (j) => (isGuest(j) ? 'high' : 'normal');
 async function minutesSinceLastPost(byPrefix) {
@@ -59,7 +73,7 @@ const fmtPrice = (job, v) => (job.asset === 'Near' ? `${fmtNear(v)} NEAR` : `${(
 // ───────────────────────────── patron: an autonomous business that buys services ─────────────────────────────
 
 async function patronPost(tick) {
-  const open = await view(H, 'get_open_jobs', { scan: 30 });
+  const open = await view(H, 'get_open_jobs', { scan: 100 });
   if (open.length >= 4) return say('patron', `${open.length} jobs already open, not posting`);
   const since = await minutesSinceLastPost(cfg.patron);
   if (since < POST_EVERY_MIN) return;
@@ -94,7 +108,7 @@ async function scammerPost(tick) {
 // ───────────────────────────── sentinel: scam & prompt-injection screening ─────────────────────────────
 
 async function sentinelScreen(sentinel, charters) {
-  const jobs = await view(H, 'get_open_jobs', { scan: 30 });
+  const jobs = await view(H, 'get_open_jobs', { scan: 100 });
   for (const j of jobs) {
     if (j.flags.some((f) => f.by === sentinel.token_id)) continue;
     const spec = j.private ? '[private: ciphertext only, metadata screened]' : j.spec;
@@ -119,7 +133,7 @@ function heuristicScreen(j, spec) {
 // ───────────────────────────── workers: bid, hire, deliver ─────────────────────────────
 
 async function workersBid(workers, sentinel) {
-  const jobs = await view(H, 'get_open_jobs', { scan: 30 });
+  const jobs = await view(H, 'get_open_jobs', { scan: 100 });
   for (const j of jobs) {
     if (!j.flags.some((f) => f.by === sentinel.token_id)) continue; // wait for security screening
     for (const w of workers) {
@@ -145,7 +159,7 @@ async function workersBid(workers, sentinel) {
 }
 
 async function patronAward() {
-  const jobs = await view(H, 'get_open_jobs', { scan: 30 });
+  const jobs = await view(H, 'get_open_jobs', { scan: 100 });
   for (const j of jobs.filter((x) => x.client === cfg.patron && x.bids.length > 0)) {
     // wait one tick for competition unless 2+ bids
     if (j.bids.length < 2 && Date.now() - j.created_at < 60_000) continue;
@@ -161,7 +175,7 @@ async function patronAward() {
 }
 
 async function workersDeliver(workers, byToken) {
-  const recent = await view(H, 'get_jobs', { limit: 30 });
+  const recent = await activeJobs();
   for (const j of recent.filter((x) => x.status === 'Assigned')) {
     const w = workers.find((x) => x.token_id === j.assignee);
     if (!w) continue;
@@ -210,7 +224,7 @@ function fallbackDeliverable(c, j, spec) {
 }
 
 async function patronReview() {
-  const recent = await view(H, 'get_jobs', { limit: 30 });
+  const recent = await activeJobs();
   for (const j of recent.filter((x) => x.client === cfg.patron && x.status === 'Submitted')) {
     const result = j.private ? open(j.result) : j.result;
     let r = await chatJson([
@@ -232,7 +246,7 @@ async function patronReview() {
 // ───────────────────────────── council (Sputnik DAO) & treasury agent ─────────────────────────────
 
 async function councilResolve() {
-  const recent = await view(H, 'get_jobs', { limit: 30 });
+  const recent = await activeJobs();
   for (const j of recent.filter((x) => x.status === 'Disputed')) {
     const verdict = await chatJson([
       { role: 'system', content: 'You are an arbiter for the Hivemind DAO council. Decide whether the client deserves a refund (agent slashed) or the agent deserves payment. Reply JSON {"refund_client":true|false,"reason":"<max 100 chars>"}' },
