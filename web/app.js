@@ -90,10 +90,25 @@ $('#connect').onclick = async () => {
   if (me) { if (confirm(`Sign out ${me}?`)) (await connector.wallet()).signOut(); return; }
   await connector.connect();
 };
+// Transactions signed in this browser return their outcome, including the hive's EVENT_JSON logs:
+// link those events to the transaction immediately (kept in localStorage), no indexer needed.
+function recordLocalTx(res) {
+  try {
+    const hash = res?.transaction?.hash || res?.transaction_outcome?.id; if (!hash) return res;
+    for (const r of res.receipts_outcome || []) for (const l of r.outcome?.logs || []) {
+      if (!l.startsWith('EVENT_JSON:')) continue;
+      const ev = JSON.parse(l.slice(11)); if (ev.standard !== 'hivemind') continue;
+      for (const d of ev.data || []) if (Number.isInteger(d.idx)) S.localTx[d.idx] = hash;
+    }
+    try { localStorage.setItem('hive-localtx', JSON.stringify(S.localTx)); } catch {}
+    refreshOpenHistory(); renderFeed();
+  } catch {}
+  return res;
+}
 async function tx(methodName, args, deposit = '0', gas = '150000000000000') {
-  if (isGuest()) return guestTx(methodName, args, deposit, gas);
+  if (isGuest()) return recordLocalTx(await guestTx(methodName, args, deposit, gas));
   const w = await connector.wallet();
-  return w.signAndSendTransaction({ receiverId: cfg.hive, actions: [{ type: 'FunctionCall', params: { methodName, args, gas, deposit } }] });
+  return recordLocalTx(await w.signAndSendTransaction({ receiverId: cfg.hive, actions: [{ type: 'FunctionCall', params: { methodName, args, gas, deposit } }] }));
 }
 const toYocto = (n) => (BigInt(Math.round(Number(n) * 1e6)) * 10n ** 18n).toString();
 document.querySelectorAll('.chip-btn[data-ex]').forEach((b) => (b.onclick = () => {
@@ -217,6 +232,7 @@ async function deepTxs(cursor) {
 // Exact event → transaction map, published by the agents (they read the hive's EVENT_JSON logs from
 // each transaction outcome). Hosted on the repo's `txmap` branch; no indexer needed.
 S.txmap = {};
+S.localTx = (() => { try { return JSON.parse(localStorage.getItem('hive-localtx') || '{}'); } catch { return {}; } })();
 async function refreshTxmap() {
   try { S.txmap = await (await fetch(`https://raw.githubusercontent.com/Shivam-sopho/hivemind-near/txmap/txmap.json?t=${Math.floor(Date.now() / 120000)}`)).json(); renderFeed(); renderEconomy(); refreshOpenHistory(); } catch (e) { console.warn('txmap', e); }
 }
@@ -237,6 +253,7 @@ async function loadAllEvents() {
 
 function txFor(e) {
   if (S.txmap && S.txmap[e.idx]) return S.txmap[e.idx];
+  if (S.localTx && S.localTx[e.idx]) return S.localTx[e.idx];
   let best = null;
   for (const t of S.txs) {
     const dt = Math.abs(t.ts - e.ts);
@@ -346,7 +363,7 @@ function historyHtml(j) {
   if (!evs.length) return `<p class="muted small">${S.evLoaded ? 'No events found.' : 'Loading the on-chain event log…'}</p>`;
   const rows = evs.map((e) => {
     const h = txFor(e);
-    const link = h ? `<a class="txl" href="${EXPLORER}/txns/${h}" target="_blank" rel="noopener" title="${h}">tx ↗</a>` : `<span class="muted mono small" title="not in the transaction map yet (new events appear within a few minutes)">tx pending</span>`;
+    const link = h ? `<a class="txl" href="${EXPLORER}/txns/${h}" target="_blank" rel="noopener" title="${h}">tx ↗</a>` : `<span class="muted mono small" title="The transaction is complete on-chain. Its explorer link appears once the agents publish it (usually within minutes).">link pending</span>`;
     return `<li><time>${new Date(e.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time><b>${esc(KIND_LABEL[e.kind] || e.kind)}</b><span class="muted">${esc(e.text.length > 110 ? e.text.slice(0, 110) + '…' : e.text)}</span>${link}</li>`;
   }).join('');
   const linked = evs.filter((e) => txFor(e)).length;
