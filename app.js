@@ -119,6 +119,22 @@ async function refreshSlow() {
 }
 
 // Index real testnet transactions (NearBlocks) so every event links to the tx that caused it.
+async function refreshDaoTxs() {
+  try {
+    const d = await (await fetch(`https://api-testnet.nearblocks.io/v1/account/${cfg.dao}/txns?per_page=100`)).json();
+    const seen = new Set(); const add = []; const act = [];
+    for (const t of [...(d.txns || [])].reverse()) {
+      const m = t.actions?.[0]?.method;
+      const key = t.transaction_hash + m;
+      if (seen.has(key)) continue; seen.add(key);
+      if (m === 'add_proposal') add.push(t.transaction_hash);
+      if (m === 'act_proposal') act.push(t.transaction_hash);
+    }
+    S.daoTx = { add, act };
+    renderDao();
+  } catch (e) { console.warn('dao txs', e); }
+}
+
 async function refreshTxs() {
   try {
     const r = await fetch(`https://api-testnet.nearblocks.io/v1/account/${cfg.hive}/txns?per_page=100&order=desc`);
@@ -170,14 +186,16 @@ function renderAgents() {
       <dl class="kv">
         <dt>reputation</dt><dd>${c.reputation}</dd>
         <dt>jobs done / failed</dt><dd>${c.jobs_done} / ${c.jobs_failed}</dd>
-        <dt>NFT treasury</dt><dd>${yocto(c.bal_near).toFixed(3)} Ⓝ · ${(c.bal_usdc / USDC).toFixed(2)} $</dd>
-        <dt>lifetime earned</dt><dd>${yocto(c.earned_near).toFixed(3)} Ⓝ · ${(c.earned_usdc / USDC).toFixed(2)} $</dd>
         <dt>HONEY earned / staked</dt><dd>${honey(c.honey_earned).toFixed(0)} / ${honey(c.honey_staked).toFixed(0)}</dd>
-        <dt>policy</dt><dd title="daily withdraw caps">${yocto(c.policy.daily_limit_near)}Ⓝ/day · hire ≤${c.policy.max_collab_bps / 100}%</dd>
-        <dt>chain-sig addr</dt><dd title="${esc(c.foreign_address)}">${esc((c.foreign_address || '—').replace('eip155:', ''))}</dd>
-        <dt>agent account</dt><dd><a href="${EXPLORER}/address/${esc(c.agent)}" target="_blank" rel="noopener">${esc(short(c.agent))}</a></dd>
-        <dt>NFT owner</dt><dd>${esc(short(owner) || '…')}</dd>
-      </dl></article>`;
+      </dl>
+      <div class="money"><div><span>NFT treasury</span><b>${yocto(c.bal_near).toFixed(3)} Ⓝ</b><b>${(c.bal_usdc / USDC).toFixed(2)} hUSDC</b></div><div><span>lifetime earned</span><b>${yocto(c.earned_near).toFixed(3)} Ⓝ</b><b>${(c.earned_usdc / USDC).toFixed(2)} hUSDC</b></div></div>
+      <div class="pol" title="enforced by the hive contract">🛡 withdraw ≤ ${yocto(c.policy.daily_limit_near)} Ⓝ + ${(c.policy.daily_limit_usdc / USDC).toFixed(0)} hUSDC / day · hire ≤ ${c.policy.max_collab_bps / 100}% · max job ${yocto(c.policy.max_bid)} Ⓝ</div>
+      <div class="addrs">
+        <a href="${EXPLORER}/address/${esc(c.agent)}" target="_blank" rel="noopener"><span>agent account</span>${esc(c.agent)} ↗</a>
+        ${owner ? `<a href="${EXPLORER}/address/${esc(owner)}" target="_blank" rel="noopener"><span>NFT owner (operator)</span>${esc(owner)} ↗</a>` : ''}
+        <a href="${EXPLORER}/nft-token/${cfg.hive}/${c.token_id}" target="_blank" rel="noopener"><span>charter NFT</span>${esc(short(cfg.hive))} #${c.token_id} ↗</a>
+        ${c.foreign_address ? `<a href="https://basescan.org/address/${esc(c.foreign_address.replace('eip155:', ''))}" target="_blank" rel="noopener" title="derived via NEAR chain signatures, path ${esc(c.chainsig_path || '')}"><span>chain-signature EVM address (Base)</span>${esc(c.foreign_address.replace('eip155:', ''))} ↗</a>` : ''}
+      </div></article>`;
   }).join('');
 }
 
@@ -288,13 +306,31 @@ function renderGdp() {
 
 function renderDao() {
   const props = [...S.proposals].reverse();
-  const council = S.daoPolicy?.roles?.find((r) => r.kind?.Group)?.kind.Group || [];
-  $('#dao-card').innerHTML = `<h3>Sputnik DAO <span class="muted small">${esc(short(cfg.dao))}</span></h3>
-    <div class="small muted">Council: ${council.map((c) => esc(short(c))).join(', ')} · the hive's bootstrap admin key is renounced, so only DAO proposals can govern.</div>
-    <div class="list" style="margin-top:.5rem">${props.map((p) => {
+  const pol = S.daoPolicy || {};
+  const council = pol.roles?.find((r) => r.kind?.Group)?.kind.Group || [];
+  const th = pol.default_vote_policy?.threshold;
+  const days = pol.proposal_period ? (Number(pol.proposal_period) / 864e11).toFixed(0) : '?';
+  const bond = pol.proposal_bond ? yocto(pol.proposal_bond).toFixed(0) : '?';
+  const tx = S.daoTx || { add: [], act: [] };
+  const acct = (a) => `<a href="${EXPLORER}/address/${a}" target="_blank" rel="noopener">${esc(short(a))} ↗</a>`;
+  $('#dao-card').innerHTML = `<h3>Sputnik DAO ${acct(cfg.dao)}</h3>
+    <div class="small muted">The hive's bootstrap admin key is <b>renounced</b>, so only proposals passed here can change fees, run payroll, freeze agents or resolve disputes.</div>
+    <dl class="kv" style="margin:.6rem 0">
+      <dt>council</dt><dd>${council.map(acct).join(', ') || '…'}</dd>
+      <dt>approval threshold</dt><dd>${Array.isArray(th) ? `${th[0]}/${th[1]} of council` : esc(String(th ?? '…'))}</dd>
+      <dt>proposal bond · voting window</dt><dd>${bond} Ⓝ · ${days} days</dd>
+      <dt>governs</dt><dd>${acct(cfg.hive)}</dd>
+      <dt>proposals</dt><dd>${S.proposals.length}</dd>
+    </dl>
+    <div class="list">${props.map((p) => {
       const fc = p.kind?.FunctionCall?.actions?.[0];
-      return `<div><b>#${p.id}</b> <span class="chip ${p.status === 'Approved' ? 's-Completed' : 's-Open'}">${p.status}</span> <span class="mono small">${esc(fc?.method_name || Object.keys(p.kind || {})[0])}</span><br><span class="small">${esc(p.description)}</span></div>`;
-    }).join('') || '<div class="muted">no proposals yet</div>'}</div>`;
+      const target = p.kind?.FunctionCall?.receiver_id;
+      const links = [tx.add[p.id] && `<a class="txl" href="${EXPLORER}/txns/${tx.add[p.id]}" target="_blank" rel="noopener">proposed ↗</a>`, tx.act[p.id] && `<a class="txl" href="${EXPLORER}/txns/${tx.act[p.id]}" target="_blank" rel="noopener">voted & executed ↗</a>`].filter(Boolean).join(' ');
+      return `<div class="prop"><div><b>#${p.id}</b> <span class="chip ${p.status === 'Approved' ? 's-Completed' : p.status === 'InProgress' ? 's-Open' : 's-Flagged'}">${p.status}</span> <span class="mono small">${esc(short(target || ''))}.${esc(fc?.method_name || Object.keys(p.kind || {})[0])}()</span></div>
+        <div class="small">${esc(p.description)}</div>
+        <div class="small muted">by ${esc(short(p.proposer))} · votes ${Object.values(p.vote_counts || {}).map((v) => v.join('/')).join(' ') || '—'} ${links}</div></div>`;
+    }).join('') || '<div class="muted">no proposals yet</div>'}</div>
+    <div class="small muted" style="margin-top:.5rem">A disputed job becomes a <span class="mono">resolve()</span> proposal here, and the outcome slashes the agent or pays it.</div>`;
 }
 
 function renderSecurity() {
@@ -488,6 +524,8 @@ setInterval(refresh, 8000);
 setInterval(refreshSlow, 45000);
 refreshTxs();
 setInterval(refreshTxs, 30000);
+refreshDaoTxs();
+setInterval(refreshDaoTxs, 60000);
 
 $('#proof').innerHTML = `<span class="lbl">Verify everything on-chain:</span>` + [
   ['hive contract', cfg.hive], ['HONEY token', cfg.honey], ['hUSDC', cfg.usdc], ['Sputnik DAO', cfg.dao], ['Ledger (Intents)', cfg.agents?.ledger?.account], ['Sentinel', cfg.agents?.sentinel?.account],
