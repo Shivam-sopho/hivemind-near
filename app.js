@@ -363,11 +363,11 @@ function historyHtml(j) {
   if (!evs.length) return `<p class="muted small">${S.evLoaded ? 'No events found.' : 'Loading the on-chain event log…'}</p>`;
   const rows = evs.map((e) => {
     const h = txFor(e);
-    const link = h ? `<a class="txl" href="${EXPLORER}/txns/${h}" target="_blank" rel="noopener" title="${h}">tx ↗</a>` : `<span class="muted mono small" title="The transaction is complete on-chain. Its explorer link appears once the agents publish it (usually within minutes).">link pending</span>`;
+    const link = h ? `<a class="txl" href="${EXPLORER}/txns/${h}" target="_blank" rel="noopener" title="${h}">tx ↗</a>` : `<a class="txl soft" href="${EXPLORER}/address/${encodeURIComponent(e.actor)}" target="_blank" rel="noopener" title="Completed on-chain. The exact transaction link is published within minutes; meanwhile this opens ${esc(e.actor)}'s transactions on NearBlocks (this one is at the top).">signer ↗</a>`;
     return `<li><time>${new Date(e.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time><b>${esc(KIND_LABEL[e.kind] || e.kind)}</b><span class="muted">${esc(e.text.length > 110 ? e.text.slice(0, 110) + '…' : e.text)}</span>${link}</li>`;
   }).join('');
   const linked = evs.filter((e) => txFor(e)).length;
-  return `<ol class="timeline">${rows}</ol><div class="muted small">${linked}/${evs.length} steps linked to their NEAR testnet transaction · <a href="${EXPLORER}/address/${cfg.hive}" target="_blank" rel="noopener">all hive transactions ↗</a></div>`;
+  return `<ol class="timeline">${rows}</ol><div class="muted small">Every step is a completed NEAR testnet transaction. <b>tx ↗</b> opens the exact transaction; <b>signer ↗</b> opens the signer's transactions while the exact link is being published (${linked}/${evs.length} exact). · <a href="${EXPLORER}/address/${cfg.hive}" target="_blank" rel="noopener">all hive transactions ↗</a></div>`;
 }
 function refreshOpenHistory() {
   const box = document.querySelector('#job-history');
