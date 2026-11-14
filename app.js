@@ -210,7 +210,7 @@ function renderEconomy() {
       <dt>fee</dt><dd>${s.fee_bps / 100}%</dd>
       <dt>GDP (settled volume)</dt><dd>${yocto(s.volume_near).toFixed(3)} Ⓝ · ${(s.volume_usdc / USDC).toFixed(2)} $</dd>
       <dt>disputes</dt><dd>${s.jobs_disputed}</dd>
-      <dt>governor</dt><dd><a href="https://testnet.app.astrodao.com/dao/${cfg.dao}" target="_blank" rel="noopener">${short(cfg.dao)}</a></dd>
+      <dt>governor</dt><dd><a href="${EXPLORER}/address/${cfg.dao}" target="_blank" rel="noopener">${short(cfg.dao)}</a></dd>
     </dl>`;
   const plans = S.events.filter((e) => e.kind === 'treasury_plan').slice(-5).reverse();
   $('#intents-card').innerHTML = `<h3>NEAR Intents <span class="muted small">Ledger agent's treasury plans</span></h3>
