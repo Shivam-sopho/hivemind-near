@@ -9,7 +9,10 @@ export const hasKey = () => Boolean(process.env.NEARAI_API_KEY);
 
 export async function chat(messages, { model = MODEL, maxTokens = 700, json = false, temperature = 0.7 } = {}) {
   if (!hasKey()) return null;
-  const body = { model, messages, max_tokens: maxTokens, temperature };
+  // Reasoning models spend tokens "thinking" before answering: keep a floor so answers are never empty,
+  // and switch Qwen's thinking off (faster, and the private TEE path stays cheap).
+  const body = { model, messages, max_tokens: Math.max(maxTokens, 600), temperature };
+  if (/^qwen\//i.test(model)) body.chat_template_kwargs = { enable_thinking: false };
   if (json) body.response_format = { type: 'json_object' };
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
@@ -47,8 +50,8 @@ export async function attestation(model = PRIVATE_MODEL, chatId) {
   if (!hasKey()) return null;
   try {
     const nonce = crypto.randomBytes(32).toString('hex');
-    const r = await fetch(`${BASE}/attestation/report?model=${encodeURIComponent(model)}&nonce=${nonce}&signing_algo=ecdsa`, {
-      headers: { authorization: `Bearer ${process.env.NEARAI_API_KEY}` },
+    const r = await fetch(`${BASE}/attestation/report?model=${encodeURIComponent(model)}&provider=near&include_tls_fingerprint=false&signing_algo=ecdsa&nonce=${nonce}`, {
+      headers: { accept: 'application/json', 'x-no-aliasing': 'true', authorization: `Bearer ${process.env.NEARAI_API_KEY}` },
       signal: AbortSignal.timeout(30_000),
     });
     if (!r.ok) return null;
