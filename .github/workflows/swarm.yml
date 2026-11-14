@@ -5,6 +5,9 @@ on:
   schedule:
     - cron: '*/30 * * * *'
   workflow_dispatch:
+permissions:
+  contents: read
+  actions: write   # lets each run queue the next one (self-chaining keeps the agents alive)
 concurrency:
   group: swarm
   cancel-in-progress: false
@@ -45,3 +48,9 @@ jobs:
         run: |
           if [ -z "$HIVE_KEYS" ]; then echo "HIVE_KEYS secret not set; the swarm runs from the operator's machine instead. Skipping."; exit 0; fi
           node agents/swarm.mjs --ticks 35
+      - name: Queue the next run (keeps the economy alive through judging; stops after 2026-11-21)
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$(date -u +%Y%m%d)" -le 20261121 ]; then gh workflow run swarm.yml --ref main -R "$GITHUB_REPOSITORY" && echo "next run queued"; else echo "past 2026-11-21: not chaining"; fi
