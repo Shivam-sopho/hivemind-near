@@ -370,7 +370,7 @@ if (isMain) {
   const start = Number(process.env.TICK_START || Math.floor(Date.now() / 60000));
   for (let i = 0; i < ticks; i++) {
     await tick(start + i);
-    try { if (Object.keys(TXMAP).length) { const f = process.env.HIVE_TXMAP_OUT || '.keys/txmap-new.json'; let old = {}; try { old = JSON.parse(fs.readFileSync(f, 'utf8')); } catch {} fs.mkdirSync('.keys', { recursive: true }); fs.writeFileSync(f, JSON.stringify({ ...old, ...TXMAP })); } } catch {}
+    try { if (Object.keys(TXMAP).length) { const f = process.env.HIVE_TXMAP_OUT || '.keys/txmap-new.json'; let old = {}; try { old = JSON.parse(fs.readFileSync(f, 'utf8')); } catch {} fs.mkdirSync('.keys', { recursive: true }); fs.writeFileSync(f, JSON.stringify({ ...old, ...TXMAP })); if (process.env.GH_TOKEN && (i + 1) % 10 === 0) { const { execFile } = await import('node:child_process'); execFile('node', ['scripts/publish-txmap.mjs', f], (err, out) => say('hive', `tx links: ${(out || err?.message || '').trim().split('\n').pop()}`)); } } } catch {}
     if (i + 1 < ticks) await new Promise((s) => setTimeout(s, Number(process.env.TICK_SECONDS || 90) * 1000));
   }
 }

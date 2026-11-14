@@ -36,6 +36,7 @@ jobs:
       - name: Run swarm ticks
         env:
           HIVE_KEYS: ${{ secrets.HIVE_KEYS }}
+          GH_TOKEN: ${{ github.token }}   # lets the swarm publish tx links every 10 ticks
           NEARAI_API_KEY: ${{ secrets.NEARAI_API_KEY }}
           HIVE_ENVELOPE_SECRET: ${{ secrets.HIVE_ENVELOPE_SECRET }}
           TICK_SECONDS: '60'
