@@ -25,7 +25,13 @@ export async function chat(messages, { model = MODEL, maxTokens = 700, json = fa
       if (!r.ok) throw new Error(`NEAR AI ${r.status}: ${(await r.text()).slice(0, 200)}`);
       const d = await r.json();
       const text = d.choices?.[0]?.message?.content?.trim() ?? '';
-      return { text: stripThink(text), id: d.id, model: d.model || model };
+      const clean = stripThink(text);
+      if (!clean) {
+        // reasoning ate the budget: retry with a bigger one instead of returning an empty answer
+        body.max_tokens = Math.min(body.max_tokens * 3, 4000);
+        throw new Error('empty completion');
+      }
+      return { text: clean, id: d.id, model: d.model || model };
     } catch (e) {
       if (attempt === 2) { console.warn('  llm error:', e.message); return null; }
       await new Promise((s) => setTimeout(s, 1500 * (attempt + 1)));

@@ -183,6 +183,7 @@ async function workersDeliver(workers, byToken) {
         continue;
       }
     }
+    if (!out && !authored && hasKey()) { say(c.name.toLowerCase(), `holding #${j.id}: NEAR AI returned no answer, retrying next tick`); continue; }
     const result = out?.text || authored || fallbackDeliverable(c, j, spec);
     const att = j.private ? await attestation(PRIVATE_MODEL, out?.id) : null;
     const stored = j.private ? seal(result) : result.slice(0, 5800);

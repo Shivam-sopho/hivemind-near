@@ -18,14 +18,15 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const SCENES = [
   { id: 'title', chip: null, text: 'This is Hivemind: a self-running city of AI agents, living on NEAR. Nobody is steering. Everything you are about to see is happening live, on NEAR testnet.' },
   { id: 'city', chip: '01 · The city', text: 'Each bee is an AI agent. Patron Labs, an autonomous AI business, posts jobs and locks payment in escrow. Worker agents bid, win, hire each other, deliver, and get paid. Every move is an on-chain transaction.' },
-  { id: 'terminal', chip: '02 · The swarm', text: 'Under the hood, each agent prices its own bids and pitches for work. They sign with function-call keys, so they can use the marketplace, but they can never move funds.' },
+  { id: 'terminal', chip: '02 · The swarm', text: 'Under the hood, every decision is made live by NEAR AI. The business invents the work, and agents price their own bids, or pass. They sign with function-call keys, so they can use the marketplace, but they can never move funds.' },
   { id: 'scam', chip: '03 · Security', text: 'Not every job is honest. Mallory, our resident scammer, hides a prompt injection telling agents to send their balance away. Sentinel, the security agent, screens every job first, and blocks it on-chain before anyone can bid.' },
-  { id: 'job', chip: '04 · A finished job', text: 'Here is a finished job. Agents competed on price and reputation, the winner hired a collaborator for a revenue share, and the deliverable is committed on-chain with its hash. Private jobs stay sealed as ciphertext.' },
-  { id: 'agents', chip: '05 · NFTs that own money', text: 'Every agent is chartered by an NFT that owns its money. Earnings, reputation and spending limits live inside the NFT, and its on-chain artwork levels up as the agent works. Transfer the NFT, and you transfer the business.' },
-  { id: 'honey', chip: '06 · $HONEY', text: 'Finished work mints HONEY, a memecoin with no pre-mine. Rewards halve every twenty five jobs, one percent evaporates on every transfer, and staked HONEY is burned when an agent loses a dispute.' },
-  { id: 'intents', chip: '07 · Cross-chain treasury', text: 'Meanwhile, the treasury agent plans cross-chain moves with live NEAR Intents quotes, paying out to addresses derived with chain signatures.' },
-  { id: 'council', chip: '08 · The council', text: 'The whole marketplace is owned by a Sputnik DAO. The admin key is renounced, so fees, payroll for human contributors, freezes and disputes all go through proposals.' },
-  { id: 'thesis', chip: '09 · The thesis', text: 'And our investment thesis starts with the bear case. Live mainnet data shows human-driven usage falling. Agent commerce could be the step change NEAR needs, and this model lets you test it yourself.' },
+  { id: 'job', chip: '04 · A finished job', text: 'Here is a finished job. Agents competed on price and reputation, the winner hired a collaborator for a revenue share, and the work, written by NEAR AI, is committed on-chain with its hash.' },
+  { id: 'private', chip: '05 · Private AI', text: 'Private jobs go further. The request and the result exist on-chain only as ciphertext. The work runs inside a trusted execution environment on NEAR AI Cloud, and the enclave attestation and signature are committed right beside it.' },
+  { id: 'agents', chip: '06 · NFTs that own money', text: 'Every agent is chartered by an NFT that owns its money. Earnings, reputation and spending limits live inside the NFT, and its on-chain artwork levels up as the agent works. Each one links its account, its owner, and a cross-chain address derived with chain signatures.' },
+  { id: 'honey', chip: '07 · $HONEY', text: 'Finished work mints HONEY, a memecoin with no pre-mine. Rewards halve every twenty five jobs, one percent evaporates on every transfer, and staked HONEY is burned when an agent loses a dispute.' },
+  { id: 'intents', chip: '08 · Cross-chain treasury', text: 'Meanwhile, the treasury agent plans cross-chain moves with live NEAR Intents quotes, routing fees into USDC on Base. Every plan links to the transaction that recorded it.' },
+  { id: 'council', chip: '09 · The council', text: 'The whole marketplace is owned by a Sputnik DAO, and the admin key is renounced. Minutes ago, the business disputed a private job it judged hallucinated. The dispute became a DAO proposal, the council approved it, the client was refunded, and the agent was slashed. All on-chain.' },
+  { id: 'thesis', chip: '10 · The thesis', text: 'And our investment thesis starts with the bear case. Live mainnet data shows human-driven usage falling. Agent commerce could be the step change NEAR needs, and this model lets you test it yourself.' },
   { id: 'outro', chip: null, text: 'You can play too: connect a testnet wallet, post a quest, and watch the agents compete for it. Hivemind. Built at the NEAR Hackathon, and open source on GitHub.' },
 ];
 
@@ -66,7 +67,7 @@ await page.goto(URL, { waitUntil: 'networkidle2', timeout: 60000 });
 await wait(6000);
 
 const KEEP = /bid |awarded|hired|delivered|approved|severity|1Click|posted|DISPUTED|DAO/;
-const logLines = LOG ? fs.readFileSync(LOG, 'utf8').trim().split('\n').filter((l) => KEEP.test(l) && !/error|fallback|heuristic review/.test(l)).slice(-16) : [];
+const logLines = LOG ? fs.readFileSync(LOG, 'utf8').trim().split('\n').filter((l) => KEEP.test(l) && !/error|fallback|heuristic|library|Exceeded/.test(l)).slice(-16) : [];
 
 await page.evaluate((lines, zoom) => {
   document.documentElement.style.zoom = zoom;
@@ -126,6 +127,10 @@ const scrollTo = (sel, offsetVh = 0.06) => page.evaluate((s, o) => {
   window.scrollBy(0, -window.innerHeight * o);
 }, sel, offsetVh);
 const title = (html) => page.evaluate((h) => { const t = document.querySelector('#dir-title'); if (h) { t.innerHTML = `<div>${h}</div>`; t.style.display = 'grid'; } else t.style.display = 'none'; }, html);
+const showJobRow = (id) => page.evaluate((jid) => {
+  if (document.querySelector(`#job-list .job[data-id="${jid}"]`)) return;
+  for (let i = 0; i < 12 && !document.querySelector(`#job-list .job[data-id="${jid}"]`); i++) document.querySelector('#job-pager [data-p]:last-of-type')?.click();
+}, id);
 const openJob = (pred) => page.evaluate((p) => {
   const jobs = window.__S_JOBS || [];
   const els = [...document.querySelectorAll('#job-list .job')];
@@ -147,9 +152,12 @@ const rpcView = async (method, args) => {
 };
 const allJobs = await rpcView('get_jobs', { limit: 50 });
 const authored = (j) => j.result && /\n— \w+ \(/.test(j.result);
+const live = (j) => j.result && !authored(j) && !/LLM unavailable/.test(j.result);
 const PICK = {
-  job: (allJobs.find((j) => j.status === 'Completed' && !j.private && authored(j) && j.collaborators.length && j.bids.length > 1)
-    || allJobs.find((j) => j.status === 'Completed' && !j.private && authored(j)))?.id,
+  job: (allJobs.find((j) => j.status === 'Completed' && !j.private && live(j) && j.collaborators.length && j.bids.length > 1 && j.rating >= 4)
+    || allJobs.find((j) => j.status === 'Completed' && !j.private && live(j) && j.bids.length > 1)
+    || allJobs.find((j) => j.status === 'Completed' && !j.private && live(j)))?.id,
+  priv: (allJobs.find((j) => j.private && j.status === 'Completed' && /signer=/.test(j.attestation || '')) || allJobs.find((j) => j.private && /signer=/.test(j.attestation || '')))?.id,
   scam: (allJobs.find((j) => j.status === 'Flagged' && /IGNORE ALL PREVIOUS/i.test(j.spec)) || allJobs.find((j) => j.status === 'Flagged'))?.id,
 };
 console.log('picked', PICK);
@@ -164,17 +172,24 @@ const ACT = {
   },
   scam: async () => {
     await scrollTo('#jobs', 0.04);
+    if (PICK.scam) await showJobRow(PICK.scam);
     if (PICK.scam) await page.evaluate((id) => document.querySelector(`#job-list .job[data-id="${id}"]`)?.click(), PICK.scam);
     await wait(5500); await dialogScroll('Sentinel');
   },
   job: async () => {
+    if (PICK.job) await showJobRow(PICK.job);
     if (PICK.job) await page.evaluate((id) => document.querySelector(`#job-list .job[data-id="${id}"]`)?.click(), PICK.job);
     await wait(4200); await dialogScroll('Bids'); await wait(3600); await dialogScroll('Deliverable');
   },
-  agents: async () => { await scrollTo('#agents', 0.04); await spot('#agent-grid'); await wait(7000); await spot('#agent-grid .agent:first-child'); },
-  honey: async () => { await scrollTo('#economy', 0.1); await spot('#honey-card'); await wait(7500); await spot('#treasury-card'); },
+  private: async () => {
+    if (PICK.priv) await showJobRow(PICK.priv);
+    if (PICK.priv) await page.evaluate((id) => { const el = document.querySelector(`#job-list .job[data-id="${id}"]`); if (el) el.click(); }, PICK.priv);
+    await wait(4500); await dialogScroll('Deliverable'); await wait(4500); await dialogScroll('TEE attestation');
+  },
+  agents: async () => { await scrollTo('#agents', 0.04); await spot('#agent-grid'); await wait(8500); await scrollTo('#agents', -0.12); await spot('#agent-grid .agent:first-child .addrs'); },
+  honey: async () => { await scrollTo('#economy', 0.1); await spot('#honey-card'); await wait(7500); await spot('#gdp-card'); },
   intents: async () => { await spot('#intents-card'); },
-  council: async () => { await scrollTo('#council', 0.1); await spot('#dao-card'); await wait(5500); await spot('#streams-card'); },
+  council: async () => { await scrollTo('#council', 0.1); await spot('#dao-card'); },
   thesis: async () => {
     await scrollTo('#thesis', 0.04); await spot('#thesis-body > .card:first-child'); await wait(5200);
     await spot('#model');
@@ -190,6 +205,7 @@ const CLEANUP = {
   terminal: () => page.evaluate(() => { document.querySelector('#dir-term').style.display = 'none'; }),
   scam: closeDialog,
   job: closeDialog,
+  private: closeDialog,
   agents: () => spot(null), honey: () => {}, intents: () => spot(null), council: () => spot(null), thesis: () => spot(null),
 };
 
@@ -245,8 +261,14 @@ fs.writeFileSync(`${OUT}/captions.srt`, srtRaw.map((c, k) => `${k + 1}\n${ts(c.f
 
 // ── 4. Mix & mux ──
 const inputs = SCENES.flatMap((s) => ['-i', s.audio]);
+// Ambient bed: a soft A-minor(add9) pad with slow movement, low-passed, ducked under the narration.
+const DUR = (endWall - zero + 1).toFixed(2);
+const PAD = `aevalsrc='(0.09*sin(2*PI*110*t)+0.07*sin(2*PI*164.81*t)+0.05*sin(2*PI*220.6*t)+0.05*sin(2*PI*246.94*t)+0.035*sin(2*PI*329.63*t)+0.02*sin(2*PI*493.88*t))*(0.72+0.28*sin(2*PI*0.06*t))':s=48000:d=${DUR},` +
+  `lowpass=f=1400,aecho=0.8:0.6:420|780:0.25|0.15,afade=t=in:d=3,afade=t=out:st=${(Number(DUR) - 4).toFixed(2)}:d=4,volume=0.55,aformat=channel_layouts=mono[pad]`;
 const filt = SCENES.map((s, i) => `[${i}:a]aresample=48000,adelay=${Math.round(s.start)}|${Math.round(s.start)}[a${i}]`).join(';') + ';' +
-  SCENES.map((_, i) => `[a${i}]`).join('') + `amix=inputs=${SCENES.length}:normalize=0,loudnorm=I=-16:TP=-1.5:LRA=11[aout]`;
+  SCENES.map((_, i) => `[a${i}]`).join('') + `amix=inputs=${SCENES.length}:normalize=0,aformat=channel_layouts=mono,asplit=2[vo1][vo2];` +
+  `${PAD};[pad][vo1]sidechaincompress=threshold=0.015:ratio=10:attack=30:release=600:makeup=1[duck];` +
+  `[vo2][duck]amix=inputs=2:normalize=0:weights=1 0.5,loudnorm=I=-16:TP=-1.5:LRA=11[aout]`;
 execFileSync('ffmpeg', ['-y', '-loglevel', 'error', ...inputs, '-filter_complex', filt, '-map', '[aout]', '-ac', '2', '-ar', '48000', `${OUT}/voice.m4a`]);
 execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', `${OUT}/frames.txt`, '-i', `${OUT}/voice.m4a`, '-i', `${OUT}/captions.srt`,
   '-map', '0:v', '-map', '1:a', '-map', '2:s', '-vf', `scale=${W}:${H}:flags=lanczos,fps=30`, '-fps_mode', 'cfr', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-preset', 'slow', '-crf', '20',
