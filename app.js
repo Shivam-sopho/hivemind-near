@@ -49,6 +49,7 @@ let nearjs = null;
 const loadNearJs = async () => (nearjs ||= await import('https://esm.sh/near-api-js@7.5.3'));
 async function playAsGuest() {
   const b = $('#guest-btn'); if (b) { b.disabled = true; b.textContent = 'Creating your testnet account…'; }
+  if (!guest) toast('Creating a free testnet account for you (about 5 seconds)…', 4000);
   try {
     const { KeyPair } = await loadNearJs();
     if (!guest) {
@@ -111,9 +112,14 @@ $('#quest-form').onsubmit = async (e) => {
   } catch (err) { toast(`Failed: ${err.message || err}`); }
   btn.disabled = false; onAuth();
 };
-function toast(msg) {
+function toast(msg, ms = 6000) {
   const d = document.createElement('div'); d.className = 'ev'; d.innerHTML = `<span class="k" style="color:var(--honey)">you</span> ${esc(msg)}`;
   $('#feed').prepend(d);
+  // also show it on screen, wherever the user is scrolled
+  let box = document.getElementById('toasts');
+  if (!box) { box = document.createElement('div'); box.id = 'toasts'; document.body.appendChild(box); }
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; box.appendChild(t);
+  setTimeout(() => t.classList.add('out'), ms); setTimeout(() => t.remove(), ms + 600);
 }
 
 // ───────────────────────── state ─────────────────────────
