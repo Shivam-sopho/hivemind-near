@@ -10,7 +10,9 @@
     "setup": "node scripts/setup.mjs",
     "swarm": "node agents/swarm.mjs",
     "swarm:loop": "node agents/swarm.mjs --loop",
-    "dev": "npx --yes serve web -l 5173"
+    "dev": "npx --yes serve web -l 5173",
+    "verify": "node scripts/verify.mjs",
+    "play": "node scripts/play.mjs"
   },
   "dependencies": {
     "@noble/hashes": "^1.8.0",

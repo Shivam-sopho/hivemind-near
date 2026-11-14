@@ -7,8 +7,39 @@ export const MODEL = process.env.HIVE_MODEL || 'deepseek/deepseek-v4.1-flash';
 export const PRIVATE_MODEL = process.env.HIVE_PRIVATE_MODEL || 'Qwen/Qwen3.8-27B';
 export const hasKey = () => Boolean(process.env.NEARAI_API_KEY);
 
-export async function chat(messages, { model = MODEL, maxTokens = 700, json = false, temperature = 0.7 } = {}) {
-  if (!hasKey()) return null;
+// ── Spend guard ──
+// Real cost is computed from the token usage NEAR AI returns x the per-token prices from /v1/models.
+// Background activity (the patron's own jobs, screening/bidding on them) stops using the LLM once the
+// daily cap is reached and falls back to the authored library; work for real users' quests ("high"
+// priority) keeps using NEAR AI until the hard total cap, so judges always get live AI.
+import fs from 'node:fs';
+const USAGE_FILE = process.env.HIVE_USAGE_FILE || '.keys/llm-usage.json';
+const DAILY_USD = Number(process.env.HIVE_LLM_DAILY_USD || 1.5);
+const TOTAL_USD = Number(process.env.HIVE_LLM_TOTAL_USD || 9);
+let PRICES = null;
+const today = () => new Date().toISOString().slice(0, 10);
+function readUsage() {
+  try { const u = JSON.parse(fs.readFileSync(USAGE_FILE, 'utf8')); if (u.day !== today()) { u.day = today(); u.spentDay = 0; } return u; } catch { return { day: today(), spentDay: 0, spentTotal: 0, calls: 0 }; }
+}
+function addUsage(usd) {
+  const u = readUsage(); u.spentDay += usd; u.spentTotal += usd; u.calls = (u.calls || 0) + 1;
+  try { fs.mkdirSync(USAGE_FILE.replace(/\/[^/]+$/, ''), { recursive: true }); fs.writeFileSync(USAGE_FILE, JSON.stringify(u)); } catch {}
+}
+export function spend() { return readUsage(); }
+export function llmAllowed(priority = 'normal') {
+  if (!hasKey()) return false;
+  const u = readUsage();
+  if (u.spentTotal >= TOTAL_USD) return false;
+  return priority === 'high' || u.spentDay < DAILY_USD;
+}
+async function prices() {
+  if (PRICES) return PRICES;
+  try { PRICES = Object.fromEntries((await (await fetch(`${BASE}/models`)).json()).data.map((m) => [m.id, m.pricing])); } catch { PRICES = {}; }
+  return PRICES;
+}
+
+export async function chat(messages, { model = MODEL, maxTokens = 700, json = false, temperature = 0.7, priority = 'normal' } = {}) {
+  if (!llmAllowed(priority)) return null;
   // Reasoning models spend tokens "thinking" before answering: keep a floor so answers are never empty,
   // and switch Qwen's thinking off (faster, and the private TEE path stays cheap).
   const body = { model, messages, max_tokens: Math.max(maxTokens, 600), temperature };
@@ -24,6 +55,7 @@ export async function chat(messages, { model = MODEL, maxTokens = 700, json = fa
       });
       if (!r.ok) throw new Error(`NEAR AI ${r.status}: ${(await r.text()).slice(0, 200)}`);
       const d = await r.json();
+      try { const p = (await prices())[model] || {}; const u = d.usage || {}; addUsage((u.prompt_tokens || 0) * Number(p.prompt || 0) + (u.completion_tokens || 0) * Number(p.completion || 0)); } catch {}
       const text = d.choices?.[0]?.message?.content?.trim() ?? '';
       const clean = stripThink(text);
       if (!clean) {

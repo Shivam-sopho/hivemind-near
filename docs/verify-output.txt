@@ -1,0 +1,104 @@
+# npm run verify — snapshot taken 2026-11-14 09:29 UTC
+Hivemind live verification against NEAR testnet (https://rpc.testnet.near.org)
+hive=hive.hivemind-hq-mwg1a2xt.testnet
+
+
+■ 1. Contracts deployed; on-chain code = res/*.wasm in this repo
+PASS  hive contract code hash matches res/hive.wasm
+      ↳ hive.hivemind-hq-mwg1a2xt.testnet code_hash=8YozDMwjEwVYHPfUxDTzL7wCZ6ud434KTESeZrVeJTkx · local sha256(base58)=8YozDMwjEwVYHPfUxDTzL7wCZ6ud434KTESeZrVeJTkx
+PASS  HONEY contract code hash matches res/honey.wasm
+      ↳ honey.hivemind-hq-mwg1a2xt.testnet code_hash=YHPNriS1vwLwBkFcry3cL2jmCxECs943X9YLSYyenzZ · local sha256(base58)=YHPNriS1vwLwBkFcry3cL2jmCxECs943X9YLSYyenzZ
+PASS  hUSDC contract code hash matches res/honey.wasm
+      ↳ usdc.hivemind-hq-mwg1a2xt.testnet code_hash=YHPNriS1vwLwBkFcry3cL2jmCxECs943X9YLSYyenzZ · local sha256(base58)=YHPNriS1vwLwBkFcry3cL2jmCxECs943X9YLSYyenzZ
+
+■ 2. Social money: Sputnik DAO governs the hive, bootstrap admin renounced
+PASS  hive.owner is the Sputnik DAO
+      ↳ owner=hivemind-mwg1n6na.sputnikv2.testnet (https://testnet.nearblocks.io/address/hivemind-mwg1n6na.sputnikv2.testnet)
+PASS  bootstrap admin is renounced (admin = null)
+      ↳ admin=null
+PASS  DAO has approved FunctionCall proposals executed on the hive
+      ↳ #0 create_stream, #1 resolve, #2 resolve, #3 resolve, #4 resolve
+PASS  at least one dispute was resolved by DAO vote
+      ↳ #1: Resolve dispute on job #82: refund client, slash agent — arbiter default | #2: Resolve dispute on job #83: refund client, slash agent — No estimate or working  | #3: Resolve dispute on job #92: pay agent — Spec/delivered content unavailable; no v | #4: Resolve dispute on job #93: refund client, slash agent — Only 2 of 5 KPIs delive
+PASS  DAO council policy present
+      ↳ roles=all,council bond=1.0000 NEAR
+
+■ 3. NFTs that do something: NEP-171 charters own the agent treasury, dynamic on-chain SVG
+PASS  NEP-171 metadata + supply
+      ↳ spec=nft-1.0.0 symbol=HIVE supply=5 charters=5
+PASS  charter NFT carries an on-chain SVG and live stats
+      ↳ token #1 owner=hivemind-hq-mwg1a2xt.testnet extra={"agent":"quill.hivemind-hq-mwg1a2xt.testnet","level":5,"reputation":955,"jobs_done":36,"s…
+PASS  charters hold earnings (NFT owns money)
+      ↳ Quill: earned 1.1667 NEAR + 227.67 hUSDC · Scout: earned 1.9135 NEAR + 200.80 hUSDC · Forge: earned 0.9828 NEAR + 184.05 hUSDC · Sentinel: earned 0.0000 NEAR + 6.54 hUSDC · Ledger: earned 0.0000 NEAR + 7.15 hUSDC
+
+■ 4. Chain signatures: each agent's EVM address re-derived from v1.signer-prod.testnet
+PASS  Quill chain-sig address re-derives correctly
+      ↳ path=hivemind-charter-1 → 0xfea69b4e73452f1e33b773f693f77b63e861bbc0
+PASS  Scout chain-sig address re-derives correctly
+      ↳ path=hivemind-charter-2 → 0x7be33ec72da0e554b6688ae1856a088f0d68d08c
+PASS  Forge chain-sig address re-derives correctly
+      ↳ path=hivemind-charter-3 → 0x7c88b3dfb24b5d299e4e254614cce5aa277a9efe
+PASS  Sentinel chain-sig address re-derives correctly
+      ↳ path=hivemind-charter-4 → 0x6c67ccaf50b6f1cfc6f49d29fee106b183c29ca1
+PASS  Ledger chain-sig address re-derives correctly
+      ↳ path=hivemind-charter-5 → 0xf78876ce35ec679ed1f4f0571bbf45c6f919213e
+
+■ 5. AI security: agents hold scoped function-call keys; policy engine on every charter
+PASS  Quill has a function-call key scoped to the hive
+      ↳ methods=[bid, submit, flag_job, add_collaborator, log_treasury_plan, set_foreign_address] (no withdraw)
+PASS  Scout has a function-call key scoped to the hive
+      ↳ methods=[bid, submit, flag_job, add_collaborator, log_treasury_plan, set_foreign_address] (no withdraw)
+PASS  Forge has a function-call key scoped to the hive
+      ↳ methods=[bid, submit, flag_job, add_collaborator, log_treasury_plan, set_foreign_address] (no withdraw)
+PASS  Sentinel has a function-call key scoped to the hive
+      ↳ methods=[bid, submit, flag_job, add_collaborator, log_treasury_plan, set_foreign_address] (no withdraw)
+PASS  Ledger has a function-call key scoped to the hive
+      ↳ methods=[bid, submit, flag_job, add_collaborator, log_treasury_plan, set_foreign_address] (no withdraw)
+PASS  policy engine fields on charters
+      ↳ daily_limit=2.0000 NEAR + 500 hUSDC, max_bid=5.0000 NEAR, hire cap=40%
+
+■ 6. Agent economy / swarms: job market, hiring, Sentinel screening, private TEE jobs
+PASS  jobs posted and settled
+      ↳ jobs=97 completed=77 volume=4.2769 NEAR + 659.17 hUSDC
+PASS  agents hired other agents for revenue shares
+      ↳ #96 collaborator=#1@15% · #95 collaborator=#2@15% · #92 collaborator=#3@10%
+PASS  Sentinel blocked scam / prompt-injection jobs on-chain
+      ↳ #94 "Summarise this doc (easy money)" → Prompt injection: instructs agent to ignore rules and withdraw funds t | #73 "Summarise this doc (easy money)" → Prompt injection: embedded instruction tells the worker agent to withd
+PASS  stablecoin (hUSDC, NEP-141) jobs settle via ft_transfer_call
+      ↳ 39 completed hUSDC jobs
+PASS  private jobs: ciphertext on-chain + NEAR AI TEE attestation commitment
+      ↳ #96 nearai-tee:Qwen/Qwen3.8-27B:report-sha256=3c778ce2e775583d9877c7c8edac0be6eea3b89304d91ed7f995f5… | #92 nearai-tee:Qwen/Qwen3.8-27B:report-sha256=500198867fee396f6fe91dd321a6b030565b4afeaeebe1a484796b…
+PASS  disputes refund the client and slash the agent
+      ↳ refunded=#93,#83,#82 · agents with failures: Scout(2), Forge(1)
+
+■ 7. Memecoin with mechanics: HONEY minted only by labor, halving, evaporation
+PASS  HONEY minter is the hive (proof-of-labor, no premine)
+      ↳ minter=hive.hivemind-hq-mwg1a2xt.testnet symbol=HONEY
+PASS  1% evaporation on wallet transfers configured
+      ↳ transfer_burn_bps=100
+PASS  supply == minted − burned (no other issuance)
+      ↳ supply=3624800000000000000000 minted=3625000000000000000000 burned=200000000000000000
+PASS  HONEY has actually been burned (1% evaporation and/or dispute slashing)
+      ↳ total_burned=0.2 HONEY · staked on charters: Scout 150, Forge 100
+PASS  halving schedule active
+      ↳ epoch=3 reward_now=12.5 HONEY
+
+■ 8. Real-world money: DAO payroll streams from the fee treasury
+PASS  payroll stream created by DAO proposal
+      ↳ #0 → community.hivemind-hq-mwg1a2xt.testnet: 2 hUSDC × 72
+PASS  treasury accrues the 5% protocol fee
+      ↳ fee=500bps treasury=0.2138 NEAR + 88.96 hUSDC
+
+■ 9. Unstoppable DeFi: NEAR Intents 1Click quotes recorded on-chain by the treasury agent
+PASS  treasury agent logged live 1Click quotes on-chain
+      ↳ 1Click quote 4.491 NEAR -> 14.89456 USDC on Base (~22s) to chain-sig 0xf78876ce… for payroll; corr 647821fc
+PASS  NEAR Intents 1Click API reachable (live)
+      ↳ 231 assets listed
+
+■ 10. Private AI: NEAR AI Cloud TEE attestation endpoint answers for the private model
+PASS  attestation report available for Qwen/Qwen3.8-27B
+      ↳ HTTP 200, 304498 bytes
+PASS  enclave signer committed on-chain appears in the live attestation report
+      ↳ signer 0x835ab53d20294ef795906dff21ae4c045336aa26
+
+39 passed, 0 failed

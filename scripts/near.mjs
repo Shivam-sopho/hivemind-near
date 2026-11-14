@@ -17,9 +17,8 @@ export const fmtNear = (y) => (Number(BigInt(y) / 10n ** 18n) / 1e6).toFixed(4);
 
 export function loadKeys() {
   // Keys come from a local gitignored file, or from the HIVE_KEYS env var (GitHub Actions secret).
-  if (process.env.HIVE_KEYS) return JSON.parse(process.env.HIVE_KEYS);
-  if (!fs.existsSync(KEYS_FILE)) return {};
-  return JSON.parse(fs.readFileSync(KEYS_FILE, 'utf8'));
+  const fromFile = fs.existsSync(KEYS_FILE) ? JSON.parse(fs.readFileSync(KEYS_FILE, 'utf8')) : {};
+  return process.env.HIVE_KEYS ? { ...JSON.parse(process.env.HIVE_KEYS), ...fromFile } : fromFile;
 }
 export function saveKey(accountId, secretKey) {
   const keys = loadKeys();

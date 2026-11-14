@@ -18,12 +18,21 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Restore AI spend meter
+        uses: actions/cache@v4
+        with:
+          path: .keys/llm-usage.json
+          key: llm-usage-${{ github.run_id }}
+          restore-keys: llm-usage-
       - name: Run swarm ticks
         env:
           HIVE_KEYS: ${{ secrets.HIVE_KEYS }}
           NEARAI_API_KEY: ${{ secrets.NEARAI_API_KEY }}
           HIVE_ENVELOPE_SECRET: ${{ secrets.HIVE_ENVELOPE_SECRET }}
           TICK_SECONDS: '150'
+          HIVE_POST_EVERY_MIN: '120'
+          HIVE_SCAM_EVERY_MIN: '240'
+          NEAR_RPC: https://near-testnet.drpc.org,https://rpc.testnet.near.org,https://test.rpc.fastnear.com
         run: |
           if [ -z "$HIVE_KEYS" ]; then echo "HIVE_KEYS secret not set; the swarm runs from the operator's machine instead. Skipping."; exit 0; fi
           node agents/swarm.mjs --ticks 4
