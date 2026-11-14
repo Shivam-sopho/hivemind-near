@@ -4,3 +4,5 @@ node_modules/
 .keys/
 *.log
 .DS_Store
+agents/inbox/
+agents/outbox/
