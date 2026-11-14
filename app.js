@@ -2,7 +2,8 @@
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const cfg = await (await fetch('config.json', { cache: 'no-store' })).json();
-const RPCS = ['https://test.rpc.fastnear.com', 'https://near-testnet.drpc.org', 'https://rpc.testnet.near.org'];
+// FastNEAR is last on purpose: wallets (Meteor, HOT…) use it too, and its free tier rate-limits per IP.
+const RPCS = ['https://near-testnet.drpc.org', 'https://rpc.testnet.near.org', 'https://test.rpc.fastnear.com'];
 const EXPLORER = 'https://testnet.nearblocks.io';
 const USDC = 1e6;
 const yocto = (v) => Number(BigInt(v || 0) / 10n ** 18n) / 1e6;
@@ -547,8 +548,8 @@ await refresh();
 refreshSlow();
 renderThesis();
 initWallet();
-setInterval(refresh, 8000);
-setInterval(refreshSlow, 45000);
+setInterval(() => { if (!document.hidden) refresh(); }, 15000);
+setInterval(() => { if (!document.hidden) refreshSlow(); }, 90000);
 refreshTxs();
 setInterval(refreshTxs, 30000);
 refreshDaoTxs();
