@@ -144,3 +144,18 @@ svg.gdp { width: 100%; height: 190px; display: block; background: var(--bg); bor
 .kpi { position: relative; overflow: hidden; }
 .kpi::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--honey); opacity: .7; }
 @media (max-width: 900px) { .steps { grid-template-columns: 1fr; } .steps li::after { display: none; } }
+
+/* ── round 3: agent addresses, DAO ── */
+.agent .money { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin: .55rem 0 .4rem; }
+.agent .money div { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: .4rem .5rem; }
+.agent .money span { display: block; font-size: .68rem; color: var(--muted); }
+.agent .money b { display: block; font-family: var(--mono); font-size: .8rem; font-weight: 600; }
+.agent .pol { font-size: .7rem; color: var(--muted); margin-bottom: .45rem; }
+.agent .addrs { display: grid; gap: .3rem; }
+.agent .addrs a { display: block; text-decoration: none; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: .3rem .5rem;
+  font-family: var(--mono); font-size: .66rem; word-break: break-all; line-height: 1.35; }
+.agent .addrs a:hover { border-color: var(--honey); color: var(--honey); }
+.agent .addrs a span { display: block; font-family: var(--sans); font-size: .64rem; color: var(--muted); }
+.kv dd a { text-decoration: none; }
+.prop { padding: .45rem 0; }
+.prop .txl { margin-left: .3rem; }
