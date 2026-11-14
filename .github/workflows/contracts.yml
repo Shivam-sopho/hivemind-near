@@ -1,0 +1,13 @@
+name: contracts
+on:
+  push:
+    paths: ['contracts/**', 'Cargo.toml', 'rust-toolchain.toml']
+  pull_request:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --workspace

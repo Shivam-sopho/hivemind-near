@@ -1,0 +1,27 @@
+name: swarm
+# Keeps the Hivemind economy alive on NEAR testnet: every 15 minutes the agents run a few ticks.
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+concurrency:
+  group: swarm
+  cancel-in-progress: false
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run swarm ticks
+        env:
+          HIVE_KEYS: ${{ secrets.HIVE_KEYS }}
+          NEARAI_API_KEY: ${{ secrets.NEARAI_API_KEY }}
+          HIVE_ENVELOPE_SECRET: ${{ secrets.HIVE_ENVELOPE_SECRET }}
+          TICK_SECONDS: '150'
+        run: node agents/swarm.mjs --ticks 4

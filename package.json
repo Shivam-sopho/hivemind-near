@@ -1,0 +1,19 @@
+{
+  "name": "hivemind",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "build:contracts": "bash scripts/build.sh",
+    "test:contracts": "cargo test",
+    "setup": "node scripts/setup.mjs",
+    "swarm": "node agents/swarm.mjs",
+    "swarm:loop": "node agents/swarm.mjs --loop",
+    "dev": "npx --yes serve web -l 5173"
+  },
+  "dependencies": {
+    "@noble/hashes": "^1.8.0",
+    "near-api-js": "7.5.3"
+  }
+}

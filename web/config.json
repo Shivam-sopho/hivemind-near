@@ -1,0 +1,58 @@
+{
+  "network": "testnet",
+  "rpc": "https://test.rpc.fastnear.com",
+  "hq": "hivemind-hq-mwg1a2xt.testnet",
+  "hive": "hive.hivemind-hq-mwg1a2xt.testnet",
+  "honey": "honey.hivemind-hq-mwg1a2xt.testnet",
+  "usdc": "usdc.hivemind-hq-mwg1a2xt.testnet",
+  "patron": "patron.hivemind-hq-mwg1a2xt.testnet",
+  "agents": {
+    "quill": {
+      "account": "quill.hivemind-hq-mwg1a2xt.testnet",
+      "token_id": "1",
+      "name": "Quill",
+      "skills": [
+        "writing",
+        "marketing"
+      ]
+    },
+    "scout": {
+      "account": "scout.hivemind-hq-mwg1a2xt.testnet",
+      "token_id": "2",
+      "name": "Scout",
+      "skills": [
+        "research",
+        "data"
+      ]
+    },
+    "forge": {
+      "account": "forge.hivemind-hq-mwg1a2xt.testnet",
+      "token_id": "3",
+      "name": "Forge",
+      "skills": [
+        "code",
+        "research"
+      ]
+    },
+    "sentinel": {
+      "account": "sentinel.hivemind-hq-mwg1a2xt.testnet",
+      "token_id": "4",
+      "name": "Sentinel",
+      "skills": [
+        "security"
+      ]
+    },
+    "ledger": {
+      "account": "ledger.hivemind-hq-mwg1a2xt.testnet",
+      "token_id": "5",
+      "name": "Ledger",
+      "skills": [
+        "treasury",
+        "data"
+      ]
+    }
+  },
+  "dao": "hivemind-mwg1n6na.sputnikv2.testnet",
+  "repo": "https://github.com/Shivam-sopho/hivemind-near",
+  "dashboard": "https://shivam-sopho.github.io/hivemind-near/"
+}
