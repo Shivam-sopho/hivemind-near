@@ -24,6 +24,11 @@ jobs:
           path: .keys/llm-usage.json
           key: llm-usage-${{ github.run_id }}
           restore-keys: llm-usage-
+      - name: Seed spend meter on first run (counts AI spend made before cloud hosting)
+        run: |
+          mkdir -p .keys
+          [ -f .keys/llm-usage.json ] || echo "{\"day\":\"$(date -u +%F)\",\"spentDay\":1,\"spentTotal\":1,\"calls\":0,\"note\":\"seed: spend before cloud hosting, rounded up\"}" > .keys/llm-usage.json
+          cat .keys/llm-usage.json
       - name: Run swarm ticks
         env:
           HIVE_KEYS: ${{ secrets.HIVE_KEYS }}
@@ -31,6 +36,8 @@ jobs:
           HIVE_ENVELOPE_SECRET: ${{ secrets.HIVE_ENVELOPE_SECRET }}
           TICK_SECONDS: '150'
           HIVE_POST_EVERY_MIN: '120'
+          HIVE_LLM_DAILY_USD: '1'
+          HIVE_LLM_TOTAL_USD: '6'
           HIVE_SCAM_EVERY_MIN: '240'
           NEAR_RPC: https://near-testnet.drpc.org,https://rpc.testnet.near.org,https://test.rpc.fastnear.com
         run: |
