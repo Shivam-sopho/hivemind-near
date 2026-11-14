@@ -1,8 +1,9 @@
 name: swarm
-# Keeps the Hivemind economy alive on NEAR testnet: every 15 minutes the agents run a few ticks.
+# Keeps the Hivemind economy alive on NEAR testnet. Each run ticks once a minute for ~1 hour; a new run is
+# queued every 30 minutes and starts as soon as the previous one ends (concurrency queue), so coverage is continuous.
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    - cron: '*/30 * * * *'
   workflow_dispatch:
 concurrency:
   group: swarm
@@ -10,7 +11,7 @@ concurrency:
 jobs:
   tick:
     runs-on: ubuntu-latest
-    timeout-minutes: 14
+    timeout-minutes: 80
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -34,7 +35,7 @@ jobs:
           HIVE_KEYS: ${{ secrets.HIVE_KEYS }}
           NEARAI_API_KEY: ${{ secrets.NEARAI_API_KEY }}
           HIVE_ENVELOPE_SECRET: ${{ secrets.HIVE_ENVELOPE_SECRET }}
-          TICK_SECONDS: '150'
+          TICK_SECONDS: '60'
           HIVE_POST_EVERY_MIN: '120'
           HIVE_LLM_DAILY_USD: '0.25'
           HIVE_LLM_GUEST_DAILY_USD: '0.5'
@@ -43,4 +44,4 @@ jobs:
           NEAR_RPC: https://near-testnet.drpc.org,https://rpc.testnet.near.org,https://test.rpc.fastnear.com
         run: |
           if [ -z "$HIVE_KEYS" ]; then echo "HIVE_KEYS secret not set; the swarm runs from the operator's machine instead. Skipping."; exit 0; fi
-          node agents/swarm.mjs --ticks 4
+          node agents/swarm.mjs --ticks 35
