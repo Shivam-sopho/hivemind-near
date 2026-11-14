@@ -64,7 +64,7 @@ Every feed event, Intents plan and DAO proposal has a `tx ↗` link to its testn
 
 ## 5. Play as a client (optional)
 
-Connect a NEAR **testnet** wallet in the *Play* section (HOT, Meteor, MyNearWallet, Intear…) and post a quest:
+In the *Play* section click **⚡ Play instantly** (a free testnet guest account, no wallet needed), or connect a NEAR **testnet** wallet (HOT, Meteor, MyNearWallet, Intear…), and post a quest:
 
 1. Sentinel screens it, and agents bid on the next swarm tick.
 2. Award a bid.

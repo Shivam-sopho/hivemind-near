@@ -40,17 +40,57 @@ async function initWallet() {
     try { const w = await connector.wallet(); const accs = await w.getAccounts(); if (accs?.[0]) { me = accs[0].accountId; onAuth(); } } catch {}
   } catch (e) { console.warn('wallet connector unavailable', e); }
 }
+// ── Guest wallet: one click, no extension. A fresh testnet account is created by the public faucet
+// (10 test NEAR), its key stays in this browser (localStorage), and transactions are signed locally and
+// sent through our RPC list, so there are no wallet popups and no third-party rate limits. Testnet only.
+let guest = null;
+try { guest = JSON.parse(localStorage.getItem('hive-guest') || 'null'); } catch {}
+let nearjs = null;
+const loadNearJs = async () => (nearjs ||= await import('https://esm.sh/near-api-js@7.5.3'));
+async function playAsGuest() {
+  const b = $('#guest-btn'); if (b) { b.disabled = true; b.textContent = 'Creating your testnet account…'; }
+  try {
+    const { KeyPair } = await loadNearJs();
+    if (!guest) {
+      const kp = KeyPair.fromRandom('ed25519');
+      const accountId = `hive-guest-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}.testnet`;
+      const r = await fetch('https://helper.nearprotocol.com/account', { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ newAccountId: accountId, newAccountPublicKey: kp.getPublicKey().toString() }) });
+      if (!r.ok) throw new Error(`faucet ${r.status}: ${(await r.text()).slice(0, 120)}`);
+      for (let i = 0; i < 20; i++) { try { await rpc('query', { request_type: 'view_account', finality: 'final', account_id: accountId }); break; } catch { await new Promise((z) => setTimeout(z, 1500)); } }
+      guest = { accountId, secretKey: kp.toString() };
+      try { localStorage.setItem('hive-guest', JSON.stringify(guest)); } catch {}
+    }
+    me = guest.accountId; onAuth();
+    toast(`You're playing as ${guest.accountId} (10 free testnet NEAR). No wallet popups needed.`);
+  } catch (e) { toast(`Guest account failed: ${e.message || e}. Try "Connect wallet" instead.`); }
+  if (b) { b.disabled = false; }
+  onAuth();
+}
+async function guestTx(methodName, args, deposit, gas) {
+  const { Account, JsonRpcProvider, FailoverRpcProvider } = await loadNearJs();
+  const provider = new FailoverRpcProvider(RPCS.map((url) => new JsonRpcProvider({ url })));
+  const acc = new Account(guest.accountId, provider, guest.secretKey);
+  const res = await acc.callFunctionRaw({ contractId: cfg.hive, methodName, args, deposit: BigInt(deposit), gas: BigInt(gas), waitUntil: 'EXECUTED_OPTIMISTIC' });
+  if (res.status?.SuccessValue === undefined) throw new Error(JSON.stringify(res.status).slice(0, 200));
+  return res;
+}
+const isGuest = () => guest && me === guest.accountId;
+
 function onAuth() {
-  $('#connect').textContent = me ? short(me) : 'Connect wallet';
+  const gb = $('#guest-btn'); if (gb) gb.textContent = isGuest() ? `⚡ Playing as guest · ${short(me)}` : '⚡ Play instantly (free guest account)';
+  $('#connect').textContent = me ? (isGuest() ? `guest · ${short(me)}` : short(me)) : 'Connect wallet';
   $('#quest-submit').textContent = me ? 'Post quest (escrow budget)' : 'Connect wallet to post';
   renderMyQuests();
 }
 $('#connect').onclick = async () => {
   if (!connector) return alert('Wallet connector failed to load');
+  if (me && isGuest()) { if (confirm(`Stop playing as guest ${me}? (the account stays saved in this browser)`)) { me = null; onAuth(); } return; }
   if (me) { if (confirm(`Sign out ${me}?`)) (await connector.wallet()).signOut(); return; }
   await connector.connect();
 };
 async function tx(methodName, args, deposit = '0', gas = '150000000000000') {
+  if (isGuest()) return guestTx(methodName, args, deposit, gas);
   const w = await connector.wallet();
   return w.signAndSendTransaction({ receiverId: cfg.hive, actions: [{ type: 'FunctionCall', params: { methodName, args, gas, deposit } }] });
 }
@@ -61,9 +101,9 @@ document.querySelectorAll('.chip-btn[data-ex]').forEach((b) => (b.onclick = () =
 }));
 $('#quest-form').onsubmit = async (e) => {
   e.preventDefault();
-  if (!me) return connector?.connect();
+  if (!me) return playAsGuest();
   const f = new FormData(e.target);
-  const btn = $('#quest-submit'); btn.disabled = true; btn.textContent = 'Waiting for wallet…';
+  const btn = $('#quest-submit'); btn.disabled = true; btn.textContent = isGuest() ? 'Posting…' : 'Waiting for wallet…';
   try {
     await tx('post_job', { title: f.get('title'), spec: f.get('spec'), private: false, skill: f.get('skill') }, toYocto(f.get('budget')));
     e.target.reset(); toast('Quest posted. Sentinel screens it first, then agents bid.');
@@ -268,9 +308,15 @@ function openJob(id) {
     ${j.result ? `<h4>Deliverable</h4><pre class="deliv">${sealed(j.result)}</pre><div class="small muted mono">sha256 ${esc(j.result_hash)}</div>` : ''}
     ${j.attestation ? `<h4>TEE attestation commitment</h4><div class="small mono" style="word-break:break-all">${esc(j.attestation)}</div>` : ''}
     ${isMine && j.status === 'Submitted' ? `<h4>Rate & pay</h4><div class="stars">${[1, 2, 3, 4, 5].map((n) => `<button data-rate="${n}" title="${n}">★</button>`).join('')}</div><button class="btn sm" data-dispute>Dispute → DAO</button>` : ''}`;
-  $('#job-detail').querySelectorAll('[data-award]').forEach((b) => (b.onclick = async () => { await tx('award', { job_id: j.id, token_id: b.dataset.award }); $('#job-dialog').close(); refresh(); }));
-  $('#job-detail').querySelectorAll('[data-rate]').forEach((b) => (b.onclick = async () => { await tx('approve', { job_id: j.id, rating: Number(b.dataset.rate) }, '0', '200000000000000'); $('#job-dialog').close(); refresh(); }));
-  const d = $('#job-detail').querySelector('[data-dispute]'); if (d) d.onclick = async () => { await tx('dispute', { job_id: j.id, reason: prompt('Why?') || 'quality' }); $('#job-dialog').close(); refresh(); };
+  const act = async (label, fn) => {
+    $('#job-dialog').close();   // the modal dialog sits in the top layer: close it so the wallet popup is in front
+    toast(`${label}… ${isGuest() ? 'signing with your guest account' : 'approve it in your wallet'}`);
+    try { await fn(); toast(`${label}: done ✓`); } catch (err) { toast(`${label} failed: ${err.message || err}`); }
+    refresh();
+  };
+  $('#job-detail').querySelectorAll('[data-award]').forEach((b) => (b.onclick = () => act(`Awarding #${j.id} to ${A[b.dataset.award]?.name}`, () => tx('award', { job_id: j.id, token_id: b.dataset.award }))));
+  $('#job-detail').querySelectorAll('[data-rate]').forEach((b) => (b.onclick = () => act(`Rating #${j.id} ${'★'.repeat(Number(b.dataset.rate))}`, () => tx('approve', { job_id: j.id, rating: Number(b.dataset.rate) }, '0', '200000000000000'))));
+  const d = $('#job-detail').querySelector('[data-dispute]'); if (d) d.onclick = () => { const why = prompt('Why are you disputing this delivery?') || 'quality'; act(`Disputing #${j.id}`, () => tx('dispute', { job_id: j.id, reason: why })); };
   $('#job-dialog').showModal();
 }
 
@@ -563,3 +609,8 @@ $('#proof').innerHTML = `<span class="lbl">Verify everything on-chain:</span>` +
 window.hiveOpenJob = (id) => openJob(Number(id));
 const deep = () => { const m = location.hash.match(/^#job-(\d+)$/); if (m) setTimeout(() => openJob(Number(m[1])), 300); };
 window.addEventListener("hashchange", deep); deep();
+
+// guest wallet wiring (button + restore a returning guest's session)
+$('#guest-btn').onclick = () => { if (!isGuest()) playAsGuest(); };
+if (guest && !me) me = guest.accountId;
+onAuth();

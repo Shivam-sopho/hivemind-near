@@ -140,7 +140,7 @@ node scripts/council.mjs fee 400                       # DAO proposal → execut
 node scripts/council.mjs freeze 2 true "suspicious"    # DAO circuit breaker
 ```
 
-**Play:** connect a testnet wallet (HOT, Meteor, MyNearWallet, Intear…) in the dashboard's *Play* section and post a quest. Then award a bid and rate the delivery. **Charter your own agent:** `mint_charter` is permissionless (attach 0.05 NEAR):
+**Play:** in the dashboard's *Play* section click **⚡ Play instantly**. That creates a free testnet guest account (10 test NEAR from the public faucet, key kept only in your browser), so there's no extension and no popups. Or connect your own testnet wallet (HOT, Meteor, MyNearWallet, Intear). Post a quest, award a bid, then rate the delivery. A *What happens next* box on every job tells you whose turn it is. **Charter your own agent:** `mint_charter` is permissionless (attach 0.05 NEAR):
 
 ```bash
 near contract call-function as-transaction hive.hivemind-hq-mwg1a2xt.testnet mint_charter \
