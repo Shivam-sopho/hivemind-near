@@ -17,7 +17,7 @@ The swarm runs continuously from the operator's machine (`node agents/swarm.mjs 
 
 **Run the dashboard locally in 10 seconds:** `npx serve web` (or `python3 -m http.server -d web`), then open the printed URL. It is a static site that talks straight to NEAR RPC.
 
-🎬 **Demo video (narrated, captioned, 2:09):** [`docs/hivemind-demo-narrated.mp4`](docs/hivemind-demo-narrated.mp4) · silent cut: [`docs/hivemind-demo.mp4`](docs/hivemind-demo.mp4)
+🎬 **Demo video (2:44, narrated with the open-source Kokoro-82M voice, captioned):** [`docs/hivemind-demo.mp4`](docs/hivemind-demo.mp4) · subtitles [`docs/hivemind-demo.srt`](docs/hivemind-demo.srt). It is recorded from the live dashboard by [`scripts/demo/director.mjs`](scripts/demo/director.mjs).
 
 | Hive City (live) | Sentinel blocks a prompt-injection job |
 |---|---|
@@ -66,7 +66,7 @@ Each step is a real transaction on NEAR testnet. The dashboard reads everything 
 | **hive** contract (Rust, near-sdk 5.30) | [`contracts/hive`](contracts/hive/src/lib.rs) | Charters (NEP-171 + dynamic on-chain SVG), job market, escrow in NEAR and NEP-141, policy engine, Sentinel flags, collaborators and revenue splits, disputes, treasury, payroll streams, grants, event log (also NEP-297 logs) |
 | **honey** contract | [`contracts/honey`](contracts/honey/src/lib.rs) | NEP-141 with mechanics: mint only by the hive, 1% "evaporation" burn on wallet transfers, `burn` for slashing. The same WASM with `faucet=true` serves as the testnet stablecoin hUSDC |
 | **Swarm runtime** (Node) | [`agents/swarm.mjs`](agents/swarm.mjs) | Patron business, Mallory scammer, Sentinel, 4 workers, Ledger treasury agent, council arbiter, operator housekeeping |
-| **LLM layer** | [`agents/llm.mjs`](agents/llm.mjs) | NEAR AI Cloud (OpenAI-compatible) for every decision; TEE attestation fetch; AES-GCM envelopes for private jobs |
+| **LLM layer** | [`agents/llm.mjs`](agents/llm.mjs), [`agents/brain.mjs`](agents/brain.mjs) | NEAR AI Cloud (OpenAI-compatible) for every decision when `NEARAI_API_KEY` is set, plus TEE attestation fetch and AES-GCM envelopes for private jobs. Without a key, agents draw on a library of deliverables, pitches, reviews and screening verdicts authored with Claude (see disclosures) |
 | **Council** | [`scripts/council.mjs`](scripts/council.mjs) | Every governance action is a Sputnik DAO `FunctionCall` proposal (fee, payroll stream, freeze, grant, dispute resolution) |
 | **Bootstrap** | [`scripts/setup.mjs`](scripts/setup.mjs) | Idempotent: faucet accounts, sub-accounts, deploys, charters, function-call keys, chain-signature addresses, DAO, admin hand-off |
 | **Thesis** | [`thesis/model.mjs`](thesis/model.mjs) | Pulls NEAR mainnet stats from NearBlocks and writes `web/data/thesis.json`; the dashboard re-runs the demand model live |
@@ -130,6 +130,8 @@ near contract call-function as-transaction hive.hivemind-hq-mwg1a2xt.testnet min
 
 - **Built from scratch during the hackathon window** (all commits on 2026-11-14). No pre-existing code.
 - **AI assistance:** this project was built with heavy use of an AI coding assistant (Claude Code) for code generation, under the author's direction.
+- **Agent intelligence in the live deployment:** the testnet swarm currently runs **without a NEAR AI Cloud key**. The agents' deliverables, bid pitches, review notes and scam verdicts come from [`agents/brain.mjs`](agents/brain.mjs), a library authored with Claude during the hackathon. Prices, bid/no-bid choices, awards and hiring are computed by the runtime. The swarm log and dashboard label these outputs `via claude-authored library`. Setting `NEARAI_API_KEY` switches every decision and deliverable to live NEAR AI Cloud inference, with TEE attestation for private jobs. As a result, the private jobs currently on-chain are sealed but have **no** TEE attestation.
+- **Demo voice:** [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) (Apache-2.0) via `kokoro-js`, rendered locally.
 - **Libraries:** `near-sdk` / `near-contract-standards` 5.30 (Rust), `near-api-js` 7.5, `@noble/hashes` (keccak for EVM address derivation), `@hot-labs/near-connect` (wallet connector, loaded from esm.sh), Google Fonts (Space Grotesk, JetBrains Mono).
 - **External services:** NEAR testnet RPC (FastNEAR, dRPC, near.org), NEAR AI Cloud, NEAR Intents 1Click API, NEAR MPC signer `v1.signer-prod.testnet` (`derived_public_key`), Sputnik DAO factory `sputnikv2.testnet`, NearBlocks API.
 
