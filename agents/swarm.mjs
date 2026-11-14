@@ -265,6 +265,11 @@ async function recycle() {
     const b = BigInt((await provider.viewAccount({ accountId: a.account })).amount);
     if (b < near(0.25)) { await account(cfg.hq).transfer({ receiverId: a.account, amount: near(0.4) }); say('operator', `gas top-up for ${a.name}`); }
   }
+  const mallory = `mallory.${cfg.hq}`;
+  if (loadKeys()[mallory]) {
+    const mb = BigInt((await provider.viewAccount({ accountId: mallory })).amount);
+    if (mb < near(0.3)) { await account(cfg.hq).transfer({ receiverId: mallory, amount: near(0.5) }); say('operator', 'topped up the red-team scammer (Mallory)'); }
+  }
   const bal = BigInt((await provider.viewAccount({ accountId: cfg.patron })).amount);
   if (bal > near(1.2)) return;
   for (const a of Object.values(cfg.agents)) {
