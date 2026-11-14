@@ -72,7 +72,8 @@ function toast(msg) {
 }
 
 // ───────────────────────── state ─────────────────────────
-const S = { stats: null, charters: [], jobs: [], events: [], streams: [], honeyStats: null, proposals: [], nfts: {}, lastEventIdx: -1, filter: 'all' };
+const S = { stats: null, charters: [], jobs: [], allJobs: new Map(), events: [], streams: [], honeyStats: null, proposals: [], nfts: {}, lastEventIdx: -1, filter: 'all', page: 1, txs: [] };
+const PAGE = 10;
 const agentByToken = () => Object.fromEntries(S.charters.map((c) => [c.token_id, c]));
 
 async function refresh() {
@@ -81,14 +82,16 @@ async function refresh() {
       view(cfg.hive, 'get_stats'), view(cfg.hive, 'get_charters', { limit: 50 }), view(cfg.hive, 'get_jobs', { limit: 50 }),
       view(cfg.hive, 'get_events', { limit: 60 }), view(cfg.hive, 'get_streams'), view(cfg.honey, 'token_stats'),
     ]);
-    Object.assign(S, { stats, charters, jobs, streams, honeyStats });
+    Object.assign(S, { stats, charters, streams, honeyStats });
+    for (const j of jobs) S.allJobs.set(j.id, j);
+    S.jobs = [...S.allJobs.values()].sort((a, b) => b.id - a.id);
     const fresh = events.filter((e) => e.idx > S.lastEventIdx);
     S.events = events;
     if (fresh.length) { S.lastEventIdx = events[events.length - 1].idx; city.ingest(fresh, S.lastEventIdx === events[events.length - 1].idx && S.booted); }
     S.booted = true;
     $('#live').textContent = '● live · testnet'; $('#live').classList.add('on');
     $('#last-refresh').textContent = `updated ${new Date().toLocaleTimeString()}`;
-    renderKpis(); renderFeed(); renderAgents(); renderJobs(); renderEconomy(); renderMyQuests(); renderSecurity();
+    renderKpis(); renderFeed(); renderAgents(); renderJobs(); renderEconomy(); renderMyQuests(); renderSecurity(); renderGdp();
   } catch (e) {
     $('#live').textContent = '● rpc retry'; $('#live').classList.remove('on'); console.warn(e);
   }
@@ -102,8 +105,39 @@ async function refreshSlow() {
   for (const c of S.charters) {
     try { const t = await view(cfg.hive, 'nft_token', { token_id: c.token_id }); S.nfts[c.token_id] = t; } catch {}
   }
-  renderDao(); renderAgents();
+  try {
+    let minId = Math.min(...S.allJobs.keys());
+    while (minId > 1 && isFinite(minId)) {
+      const older = await view(cfg.hive, 'get_jobs', { before: minId, limit: 50 });
+      if (!older.length) break;
+      for (const j of older) if (!S.allJobs.has(j.id)) S.allJobs.set(j.id, j);
+      minId = Math.min(...older.map((j) => j.id));
+    }
+    S.jobs = [...S.allJobs.values()].sort((a, b) => b.id - a.id);
+  } catch (e) { console.warn('backfill', e); }
+  renderDao(); renderAgents(); renderJobs(); renderGdp();
 }
+
+// Index real testnet transactions (NearBlocks) so every event links to the tx that caused it.
+async function refreshTxs() {
+  try {
+    const r = await fetch(`https://api-testnet.nearblocks.io/v1/account/${cfg.hive}/txns?per_page=100&order=desc`);
+    const d = await r.json();
+    S.txs = (d.txns || []).map((t) => ({ hash: t.transaction_hash, ts: Number(String(t.receipt_block?.block_timestamp ?? t.block_timestamp).slice(0, 13)), from: t.predecessor_account_id, method: t.actions?.[0]?.method }));
+    renderFeed(); renderEconomy();
+  } catch (e) { console.warn('nearblocks', e); }
+}
+function txFor(e) {
+  let best = null;
+  for (const t of S.txs) {
+    const dt = Math.abs(t.ts - e.ts);
+    if (dt > 2500) continue;
+    const score = dt + (t.from === e.actor ? 0 : 5000);
+    if (!best || score < best.score) best = { ...t, score };
+  }
+  return best && best.score < 5000 + 2500 ? best.hash : null;
+}
+const txLink = (e) => { const h = txFor(e); return h ? `<a class="txl" href="${EXPLORER}/txns/${h}" target="_blank" rel="noopener" title="view transaction on NearBlocks">tx ↗</a>` : ''; };
 
 // ───────────────────────── renderers ─────────────────────────
 function renderKpis() {
@@ -118,15 +152,17 @@ function renderKpis() {
 
 const KIND_COLOR = { job_posted: 'var(--info)', bid: 'var(--muted)', awarded: 'var(--amber)', submitted: 'var(--amber)', job_completed: 'var(--good)', job_blocked: 'var(--bad)', job_screened: 'var(--muted)', slashed: 'var(--violet)', disputed: 'var(--violet)', treasury_plan: 'var(--honey)', hired: 'var(--honey)', stream_created: 'var(--good)', payroll_claimed: 'var(--good)', grant: 'var(--good)' };
 function renderFeed() {
-  $('#feed').innerHTML = [...S.events].reverse().map((e) => `<div class="ev"><time>${ago(e.ts)}</time><span class="k" style="color:${KIND_COLOR[e.kind] || 'var(--muted)'}">${esc(e.kind.replace('_', ' '))}</span><div>${esc(e.text)}</div></div>`).join('');
+  $('#feed').innerHTML = [...S.events].reverse().map((e) => `<div class="ev"><time>${txLink(e)} ${ago(e.ts)}</time><span class="k" style="color:${KIND_COLOR[e.kind] || 'var(--muted)'}">${esc(e.kind.replace('_', ' '))}</span><div>${esc(e.text)}</div></div>`).join('');
 }
 
 function level(rep, jobs) { const bj = jobs <= 1 ? 1 : jobs <= 4 ? 2 : jobs <= 9 ? 3 : jobs <= 19 ? 4 : jobs <= 39 ? 5 : 6; return Math.max(1, Math.min(bj, 1 + Math.floor(rep / 150))); }
 function renderAgents() {
-  $('#agent-grid').innerHTML = S.charters.map((c) => {
+  const ranked = [...S.charters].sort((a, b) => b.reputation - a.reputation || b.jobs_done - a.jobs_done);
+  const medal = ['🥇', '🥈', '🥉'];
+  $('#agent-grid').innerHTML = ranked.map((c, rank) => {
     const media = S.nfts[c.token_id]?.metadata?.media;
     const owner = S.nfts[c.token_id]?.owner_id;
-    return `<article class="card agent">
+    return `<article class="card agent ${rank === 0 ? 'leader' : ''}"><span class="rank">${medal[rank] || '#' + (rank + 1)}</span>
       ${media ? `<img alt="${esc(c.name)} charter NFT" src="${esc(media)}"/>` : '<div style="aspect-ratio:1;background:#14110a;border-radius:12px"></div>'}
       <h3>${esc(c.name)} <span class="chip ${c.frozen ? 's-Flagged' : 's-Completed'}">${c.frozen ? 'FROZEN' : `L${level(c.reputation, c.jobs_done)}`}</span></h3>
       <div class="muted small">${esc(c.skills.join(' · '))}</div>
@@ -147,18 +183,28 @@ function renderAgents() {
 
 const STATUSES = ['all', 'Open', 'Flagged', 'Assigned', 'Submitted', 'Completed', 'Disputed', 'Refunded'];
 function renderJobs() {
-  $('#job-filters').innerHTML = STATUSES.map((s) => `<button class="btn sm ${S.filter === s ? 'primary' : ''}" data-f="${s}">${s}</button>`).join('');
-  $('#job-filters').querySelectorAll('button').forEach((b) => (b.onclick = () => { S.filter = b.dataset.f; renderJobs(); }));
+  const counts = Object.fromEntries(STATUSES.map((st) => [st, st === 'all' ? S.jobs.length : S.jobs.filter((j) => j.status === st).length]));
+  $('#job-filters').innerHTML = STATUSES.map((st) => `<button class="btn sm ${S.filter === st ? 'primary' : ''}" data-f="${st}">${st} <span class="cnt">${counts[st]}</span></button>`).join('');
+  $('#job-filters').querySelectorAll('button').forEach((b) => (b.onclick = () => { S.filter = b.dataset.f; S.page = 1; renderJobs(); }));
   const A = agentByToken();
-  $('#job-list').innerHTML = S.jobs.filter((j) => S.filter === 'all' || j.status === S.filter).map((j) => `
+  const list = S.jobs.filter((j) => S.filter === 'all' || j.status === S.filter);
+  const pages = Math.max(1, Math.ceil(list.length / PAGE));
+  S.page = Math.min(S.page, pages);
+  const slice = list.slice((S.page - 1) * PAGE, S.page * PAGE);
+  $('#job-list').innerHTML = slice.map((j) => `
     <div class="job" data-id="${j.id}">
       <span class="id">#${j.id}</span>
       <div><div class="t">${j.private ? '🔒 ' : ''}${esc(j.title)}</div>
         <div class="sub">${esc(short(j.client))} · ${esc(j.skill)} · ${j.bids.length} bids${j.assignee ? ` · ${esc(A[j.assignee]?.name)}` : ''}${j.collaborators.length ? ` + ${j.collaborators.map(([t]) => esc(A[t]?.name)).join(', ')}` : ''}${j.rating ? ` · ${'★'.repeat(j.rating)}` : ''} · ${ago(j.updated_at)} ago</div></div>
       <span class="amt">${amt(j.asset, j.price !== '0' ? j.price : j.budget)}</span>
       <span class="chip s-${j.status}">${j.status}</span>
-    </div>`).join('') || '<p class="muted">No jobs yet.</p>';
+    </div>`).join('') || '<p class="muted">No jobs here yet.</p>';
   $('#job-list').querySelectorAll('.job').forEach((el) => (el.onclick = () => openJob(Number(el.dataset.id))));
+  const win = (() => { const out = []; for (let i = 1; i <= pages; i++) if (i === 1 || i === pages || Math.abs(i - S.page) <= 1) out.push(i); else if (out[out.length - 1] !== '…') out.push('…'); return out; })();
+  $('#job-pager').innerHTML = pages <= 1 ? '' : `<button class="btn sm" data-p="${S.page - 1}" ${S.page === 1 ? 'disabled' : ''}>← Prev</button>` +
+    win.map((i) => (i === '…' ? '<span class="muted">…</span>' : `<button class="btn sm ${i === S.page ? 'primary' : ''}" data-p="${i}">${i}</button>`)).join('') +
+    `<button class="btn sm" data-p="${S.page + 1}" ${S.page === pages ? 'disabled' : ''}>Next →</button><span class="muted small">${list.length} jobs · page ${S.page}/${pages}</span>`;
+  $('#job-pager').querySelectorAll('[data-p]').forEach((b) => (b.onclick = () => { S.page = Number(b.dataset.p); renderJobs(); $('#jobs').scrollIntoView({ behavior: 'smooth' }); }));
 }
 
 function openJob(id) {
@@ -215,7 +261,29 @@ function renderEconomy() {
   const plans = S.events.filter((e) => e.kind === 'treasury_plan').slice(-5).reverse();
   $('#intents-card').innerHTML = `<h3>NEAR Intents <span class="muted small">Ledger agent's treasury plans</span></h3>
     <p class="small muted">Ledger requests live mainnet <b>1Click</b> quotes (dry-run) to route NEAR fees into USDC on Base. The USDC is paid to its <b>chain-signatures</b> derived EVM address for stablecoin payroll.</p>
-    <div class="list">${plans.map((p) => `<div><span class="muted mono small">${ago(p.ts)} ago</span><br>${esc(p.text)}</div>`).join('') || '<div class="muted">waiting for first plan…</div>'}</div>`;
+    <div class="list">${plans.map((p) => {
+      const m = p.text.match(/1Click quote ([\d.]+) NEAR -> ([\d.]+) USDC on Base \(~(\d+)s\) to chain-sig (0x[0-9a-fA-F]+).*corr (\w+)/);
+      if (!m) return `<div><span class="muted mono small">${ago(p.ts)} ago ${txLink(p)}</span><br>${esc(p.text)}</div>`;
+      return `<div class="route-row"><div class="route"><span class="node">${Number(m[1]).toFixed(3)} <b>NEAR</b></span><span class="arrow">→ 1Click · ~${m[3]}s →</span><span class="node">${Number(m[2]).toFixed(2)} <b>USDC</b> <i>Base</i></span><span class="arrow">→</span><span class="node addr" title="chain-signature address derived for Ledger">${m[4].slice(0, 8)}…</span></div>
+        <div class="small muted mono">${ago(p.ts)} ago · quote ${esc(m[5])} · ${txLink(p) || 'indexing…'} <span title="NEAR Intents has no testnet; Ledger takes live mainnet quotes with dry:true and records them on-chain">· dry-run</span></div></div>`;
+    }).join('') || '<div class="muted">waiting for first plan…</div>'}</div>
+    <div class="small muted" style="margin-top:.5rem">Each plan is a live mainnet quote recorded on-chain by Ledger (tx ↗). NEAR Intents has no testnet, so swaps are not executed.</div>`;
+}
+
+function renderGdp() {
+  const el = $('#gdp-card'); if (!el) return;
+  const done = S.jobs.filter((j) => j.status === 'Completed').sort((a, b) => a.updated_at - b.updated_at);
+  if (done.length < 2) { el.innerHTML = '<h3>Agent GDP</h3><p class="muted">Waiting for settled jobs…</p>'; return; }
+  let near = 0, usdc = 0;
+  const pts = done.map((j, i) => { if (j.asset === 'Near') near += yocto(j.price); else usdc += Number(j.price) / USDC; return { t: j.updated_at, near, usdc, n: i + 1 }; });
+  const t0 = pts[0].t, t1 = pts[pts.length - 1].t || t0 + 1;
+  const Wc = 900, Hc = 190;
+  const line = (key, color) => { const max = Math.max(...pts.map((p) => p[key])) || 1; return `<polyline fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" points="${pts.map((p) => `${(((p.t - t0) / (t1 - t0 || 1)) * Wc).toFixed(1)},${(Hc - 8 - (p[key] / max) * (Hc - 24)).toFixed(1)}`).join(' ')}"/>`; };
+  const fmtT = (t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  el.innerHTML = `<h3>Agent GDP <span class="muted small">cumulative settled work, read from the chain</span></h3>
+    <div class="legend"><span><i style="background:#f5b700"></i>hUSDC settled · <b>${usdc.toFixed(2)}</b></span><span><i style="background:#60a5fa"></i>NEAR settled · <b>${near.toFixed(3)}</b></span><span><i style="background:#34d399"></i>jobs completed · <b>${pts.length}</b></span></div>
+    <svg viewBox="0 0 ${Wc} ${Hc}" preserveAspectRatio="none" class="gdp">${[0.25, 0.5, 0.75].map((f) => `<line x1="0" x2="${Wc}" y1="${Hc * f}" y2="${Hc * f}" stroke="rgba(245,183,0,.08)"/>`).join('')}${line('usdc', '#f5b700')}${line('near', '#60a5fa')}${line('n', '#34d399')}</svg>
+    <div class="small muted mono" style="display:flex;justify-content:space-between"><span>${fmtT(t0)}</span><span>each line normalised to its own max</span><span>${fmtT(t1)}</span></div>`;
 }
 
 function renderDao() {
@@ -418,3 +486,9 @@ renderThesis();
 initWallet();
 setInterval(refresh, 8000);
 setInterval(refreshSlow, 45000);
+refreshTxs();
+setInterval(refreshTxs, 30000);
+
+$('#proof').innerHTML = `<span class="lbl">Verify everything on-chain:</span>` + [
+  ['hive contract', cfg.hive], ['HONEY token', cfg.honey], ['hUSDC', cfg.usdc], ['Sputnik DAO', cfg.dao], ['Ledger (Intents)', cfg.agents?.ledger?.account], ['Sentinel', cfg.agents?.sentinel?.account],
+].filter(([, a]) => a).map(([l, a]) => `<a href="${EXPLORER}/address/${a}" target="_blank" rel="noopener">${l} ↗</a>`).join('') + `<a href="${repo}" target="_blank" rel="noopener">source ↗</a>`;
