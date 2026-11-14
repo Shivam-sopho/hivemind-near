@@ -294,6 +294,12 @@ async function recycle() {
   }
   // The hive pays for its own storage (jobs, deliverables, events): ~1 NEAR per 100 KB. Keep a free buffer,
   // otherwise state-growing calls (approve, submit, post) fail with "lacks balance for state".
+  const hqNow = BigInt((await provider.viewAccount({ accountId: cfg.hq })).amount);
+  if (hqNow < near(4) && process.env.HIVE_ALLOW_FAUCET !== '0') {
+    const { faucetAccount } = await import('../scripts/near.mjs');
+    const funder = `hive-funder-${Date.now().toString(36)}.testnet`;
+    try { await faucetAccount(funder); await account(funder).transfer({ receiverId: cfg.hq, amount: near(9.9) }); say('operator', 'refilled HQ from testnet faucet'); } catch (e) { say('operator', `faucet refill failed: ${e.message.slice(0, 80)}`); }
+  }
   const hs = await provider.viewAccount({ accountId: H });
   const hiveFree = BigInt(hs.amount) - BigInt(hs.storage_usage) * 10n ** 19n;
   if (hiveFree < near(1.5)) { await account(cfg.hq).transfer({ receiverId: H, amount: near(3) }); say('operator', `storage top-up: hive had ${fmtNear(hiveFree)} NEAR free, sent 3 NEAR`); }
