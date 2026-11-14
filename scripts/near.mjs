@@ -44,9 +44,26 @@ export async function view(contractId, method, args = {}) {
   return provider.callFunction({ contractId, method, args });
 }
 
+// ── exact event → transaction map ──
+// The hive emits `EVENT_JSON:{"standard":"hivemind",...,"data":[{"idx":N,...}]}` in its logs. Every
+// transaction outcome we receive therefore tells us exactly which on-chain events it produced.
+export const TXMAP = {};
+export function recordTx(res) {
+  try {
+    const hash = res?.transaction?.hash; if (!hash) return;
+    for (const r of res.receipts_outcome || []) for (const l of r.outcome?.logs || []) {
+      if (!l.startsWith('EVENT_JSON:')) continue;
+      const ev = JSON.parse(l.slice(11));
+      if (ev.standard !== 'hivemind') continue;
+      for (const d of ev.data || []) if (Number.isInteger(d.idx)) TXMAP[d.idx] = hash;
+    }
+  } catch {}
+}
+
 export async function call(signerId, contractId, methodName, args = {}, { deposit = 0n, gas = 100n * TGAS } = {}) {
   const acc = account(signerId);
   const res = await acc.callFunctionRaw({ contractId, methodName, args, deposit, gas, waitUntil: 'EXECUTED_OPTIMISTIC' });
+  recordTx(res);
   const ok = res.status && res.status.SuccessValue !== undefined;
   let value;
   if (ok && res.status.SuccessValue) {

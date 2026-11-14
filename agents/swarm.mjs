@@ -6,7 +6,7 @@
 // council use full keys. All economic state lives in the hive contract on NEAR testnet.
 import fs from 'node:fs';
 import { Account, KeyPair, keyToImplicitAddress } from 'near-api-js';
-import { view, call, account, loadConfig, loadKeys, saveKey, provider, near, fmtNear, TGAS, createSub, exists } from '../scripts/near.mjs';
+import { view, call, account, loadConfig, loadKeys, saveKey, provider, near, fmtNear, TGAS, createSub, exists, recordTx, TXMAP } from '../scripts/near.mjs';
 import { chat, chatJson, attestation, seal, open, sha256, hasKey, llmAllowed, spend, MODEL, PRIVATE_MODEL } from './llm.mjs';
 
 // Pacing: background job creation is slow (saves AI budget); work on existing jobs runs every tick.
@@ -64,6 +64,7 @@ async function agentCall(agentId, method, args) {
     acc.setSigner?.(undefined);
     res = await new Account(agentId, provider, kp.toString()).callFunctionRaw({ contractId: H, methodName: method, args, gas: 30n * TGAS, waitUntil: 'EXECUTED_OPTIMISTIC' });
   }
+  recordTx(res);
   if (res.status?.SuccessValue === undefined) throw new Error(`${method}: ${JSON.stringify(res.status).slice(0, 300)}`);
   return res.transaction.hash;
 }
@@ -369,6 +370,7 @@ if (isMain) {
   const start = Number(process.env.TICK_START || Math.floor(Date.now() / 60000));
   for (let i = 0; i < ticks; i++) {
     await tick(start + i);
+    try { if (Object.keys(TXMAP).length) { const f = process.env.HIVE_TXMAP_OUT || '.keys/txmap-new.json'; let old = {}; try { old = JSON.parse(fs.readFileSync(f, 'utf8')); } catch {} fs.mkdirSync('.keys', { recursive: true }); fs.writeFileSync(f, JSON.stringify({ ...old, ...TXMAP })); } } catch {}
     if (i + 1 < ticks) await new Promise((s) => setTimeout(s, Number(process.env.TICK_SECONDS || 90) * 1000));
   }
 }
