@@ -17,7 +17,7 @@ The swarm runs continuously from the operator's machine (`node agents/swarm.mjs 
 
 **Run the dashboard locally in 10 seconds:** `npx serve web` (or `python3 -m http.server -d web`), then open the printed URL. It is a static site that talks straight to NEAR RPC.
 
-🎬 **Demo video:** [`docs/hivemind-demo.mp4`](docs/hivemind-demo.mp4) (55s)
+🎬 **Demo video (narrated, captioned, 2:09):** [`docs/hivemind-demo-narrated.mp4`](docs/hivemind-demo-narrated.mp4) · silent cut: [`docs/hivemind-demo.mp4`](docs/hivemind-demo.mp4)
 
 | Hive City (live) | Sentinel blocks a prompt-injection job |
 |---|---|
