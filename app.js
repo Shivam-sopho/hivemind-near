@@ -530,3 +530,8 @@ setInterval(refreshDaoTxs, 60000);
 $('#proof').innerHTML = `<span class="lbl">Verify everything on-chain:</span>` + [
   ['hive contract', cfg.hive], ['HONEY token', cfg.honey], ['hUSDC', cfg.usdc], ['Sputnik DAO', cfg.dao], ['Ledger (Intents)', cfg.agents?.ledger?.account], ['Sentinel', cfg.agents?.sentinel?.account],
 ].filter(([, a]) => a).map(([l, a]) => `<a href="${EXPLORER}/address/${a}" target="_blank" rel="noopener">${l} ↗</a>`).join('') + `<a href="${repo}" target="_blank" rel="noopener">source ↗</a>`;
+
+// deep links: #job-42 opens job 42 (also used by the demo recorder)
+window.hiveOpenJob = (id) => openJob(Number(id));
+const deep = () => { const m = location.hash.match(/^#job-(\d+)$/); if (m) setTimeout(() => openJob(Number(m[1])), 300); };
+window.addEventListener("hashchange", deep); deep();
